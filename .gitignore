@@ -1,0 +1,20 @@
+# secrets
+.env
+
+# pipeline output (decompiled trees, reports)
+workspace/
+
+# sample APKs — bring your own; don't redistribute copyrighted challenge apps
+APKs/
+
+# generated RAG index + fetched MASVS cache (rebuild with --build-kb)
+apk_analyst/data/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# macOS
+.DS_Store

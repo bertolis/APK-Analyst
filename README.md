@@ -1,0 +1,169 @@
+# APKAnalyst
+
+**An AI security *analyst agent* for Android APKs.**
+
+APKAnalyst takes an Android APK, autonomously investigates it for security
+issues the way a human analyst would — it plans, runs real decompilers and
+static-analysis tools, reasons about what it finds, grounds its conclusions in
+real security standards, and produces a prioritized, structured report.
+
+It is deliberately **not** "an AI scanner that pattern-matches." It is an
+**agent**: it decides what to look at next, pulls apart native libraries,
+verifies its own hypotheses with evidence, and cites the standard each finding
+maps to instead of relying on the model's memory.
+
+---
+
+## Why this design
+
+Decompiled APKs are large, messy, unstructured data — exactly where an LLM
+agent earns its keep and a naive chatbot visibly fails. The methodology behind
+mobile security assessment is ~90% *static* (decompile → read Java/smali/native
+→ recognize a known pattern), which maps cleanly onto an agent with file and
+search tools. APKAnalyst is **static-analysis-first**; a dynamic phase
+(Frida/Burp) is a possible future extension.
+
+---
+
+## How it works
+
+```
+        APK
+         │  decompile (jadx + apktool) · parse manifest · extract native strings
+         ▼
+   Extracted facts ──►  Agent (Claude, tool-driven loop)
+                          │   tools: list_dir · read_file · grep ·
+                          │          strings_in_lib · search_knowledge
+                          │   grounded by ── RAG knowledge base
+                          ▼
+                   Structured JSON findings ──► prioritized report
+```
+
+The agent runs a **manual tool-use loop**: it is given a small seed view of the
+APK plus a toolbox, and it decides what to read, grep, or disassemble next. When
+it has investigated thoroughly it stops, and a final structured-output pass emits
+the report against a strict schema (severity · OWASP Mobile category · CWE ·
+location · evidence · exploit path · fix · cited standards).
+
+### Grounding (RAG)
+
+Findings are grounded in a local vector knowledge base with two roles:
+
+- **Rulebook — OWASP MASVS.** The Mobile App Security Verification Standard
+  controls, so a finding cites *what standard* it violates.
+- **Playbook — analyst methodology.** Curated static-analysis course notes
+  (static analysis, malware analysis, OWASP Mobile Top 10, tooling) that guide
+  *how to find and confirm* an issue.
+
+Sources are embedded once with [Voyage AI](https://voyageai.com) and stored in a
+small local numpy vector store; at analysis time the agent calls
+`search_knowledge` to retrieve the most relevant control/notes by *meaning* and
+records the citations on each finding.
+
+---
+
+## AI engineering demonstrated
+
+| Technique | Where |
+|---|---|
+| LLM APIs & prompt engineering | `ai/analyst.py` — methodology encoded as a system prompt |
+| Structured outputs (JSON schema) | `ai/models.py` — Pydantic `Finding` / `AnalysisReport` via `messages.parse` |
+| Tool use / function calling | `ai/tools.py` — sandboxed toolbox with path-safety |
+| Agentic loop | `ai/agent.py` — plan → call tools → observe → iterate |
+| RAG (embeddings + vector store) | `knowledge/` — Voyage embeddings, cosine retrieval |
+| Context management | `ai/context.py` — packs extracted facts within token limits |
+
+---
+
+## Layout
+
+```
+apk_analyst/
+  decompile.py · manifest.py · natives.py · framework.py · pipeline.py   # Step 1: extraction
+  ai/
+    models.py      # structured-output schema
+    context.py     # fact packing
+    analyst.py     # Step 2: single structured LLM call
+    agent.py       # Step 3: agentic tool-use loop
+    tools.py       # the agent's toolbox (+ search_knowledge)
+  knowledge/       # Step 4: RAG grounding
+    corpus.py      # gather + chunk sources
+    embedder.py    # Voyage embeddings (self-throttles on free tier)
+    store.py       # local numpy vector store + cosine search
+    build.py       # build the index
+run.py             # CLI
+```
+
+---
+
+## Setup
+
+Requires Python 3.9+, and the external tools `jadx`, `apktool`, and `strings`
+on your PATH.
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env        # then add your keys
+```
+
+`.env` needs:
+
+- `ANTHROPIC_API_KEY` — runs the analyst agent.
+- `VOYAGE_API_KEY` — embeds the knowledge base ([free tier](https://dashboard.voyageai.com/)
+  is enough; the whole corpus is a one-time ~50K tokens).
+
+Build the knowledge index once:
+
+```bash
+python3 run.py --build-kb
+```
+
+> The knowledge index and any fetched standards are git-ignored — rebuild them
+> locally with the command above. The playbook is sourced from local course
+> notes that are not distributed with the repo.
+
+## Usage
+
+```bash
+# Step 1 — extraction only
+python3 run.py APKs/YourApp.apk
+
+# Step 2 — single-call structured analysis
+python3 run.py APKs/YourApp.apk --ai
+
+# Step 3+4 — grounded agentic investigation (recommended)
+python3 run.py APKs/YourApp.apk --agent
+```
+
+Reports are written to `workspace/<AppName>/`.
+
+---
+
+## Example finding
+
+```
+[CRITICAL] Hardcoded AES key and IV in application resources (strings.xml)  (firm)
+  M10: Insufficient Cryptography | CWE-798
+  where : MainActivity.java (encrypt/decrypt) + res/values/strings.xml
+  why   : Anyone with the APK reads the 16-byte key/IV and decrypts every
+          message — local DB and network ciphertext alike. The "encryption"
+          provides zero confidentiality against an attacker who holds the app.
+  fix   : Remove key material from the APK; use the Android Keystore or a
+          server-negotiated session key.
+  cites : MASVS-CRYPTO · Course:Static — Exploiting Bad Cryptography
+```
+
+---
+
+## Roadmap
+
+- [x] **Step 1** — Extraction pipeline (decompile → manifest / permissions / native / code)
+- [x] **Step 2** — Structured single-call analysis
+- [x] **Step 3** — Agentic tool-use loop
+- [x] **Step 4** — RAG grounding (MASVS rulebook + methodology playbook)
+- [ ] **Step 5** — Evals: measure precision / recall / false-positive rate on known-vulnerable APKs
+
+---
+
+*Built as a project exploring agentic AI applied to a real,
+domain-specific problem.*
