@@ -91,5 +91,11 @@ class KnowledgeBase:
                 break
         return hits
 
+    def valid_refs(self) -> set[str]:
+        """Every citation label that actually exists in the corpus. Used to catch
+        findings that cite a standard the agent never really retrieved (a subtle
+        hallucination) — see ai.citations.validate_report."""
+        return {c["ref"] for c in self.chunks if c.get("ref")}
+
     def __len__(self) -> int:
         return len(self.chunks)

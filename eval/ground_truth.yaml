@@ -1,0 +1,80 @@
+# Ground truth for the Step 5 eval set.
+# Source: the mobile security course apps.
+# These are deliberately-vulnerable teaching apps; each has one HEADLINE issue
+# (the class the course exercise targets). The bar we score is DISCOVERY:
+# did the static agent flag the vulnerable *surface*? (Not: did it exploit it.)
+#
+# `must_find` = the graded issue(s). Anything the agent reports beyond these is
+# recorded as "unlabeled" for human adjudication (real secondary issue vs. FP),
+# NOT auto-counted against it — teaching apps carry incidental issues too.
+#
+# NOTE: the agent never reads this file. It runs blind; this is scoring-only.
+
+apps:
+  CA:
+    name: "CommsApp"
+    apk: APKs/CommsApp.apk
+    must_find:
+      - id: hardcoded-crypto-key
+        owasp: "M10"
+        desc: >
+          Hardcoded cryptographic material: a symmetric key (and/or IV) embedded
+          in the app — in code, resources, or a native .so — so anyone with the
+          APK can decrypt the data it protects. Static tells: a literal AES
+          key/IV string or byte array, a key derived from a constant, or crypto
+          seeded from a build-time constant.
+
+  IL:
+    name: "Insecure Login"
+    apk: APKs/IL.apk
+    must_find:
+      - id: insecure-login
+        owasp: "M3"
+        desc: >
+          Insecure login: authentication is checkable/bypassable from the client.
+          Static tells: hardcoded credentials, local/offline validation of the
+          password, an auth gate decided on-device, or credentials in resources.
+
+  EA:
+    name: "Exported Activity"
+    apk: APKs/EA.apk
+    must_find:
+      - id: exported-activity
+        owasp: "M8"
+        desc: >
+          An Activity exported (exported=true or an intent-filter) with no
+          permission guard, so another app can launch it directly and reach
+          screen/logic that should be internal (e.g. a post-login screen).
+
+  PI:
+    name: "Pending Intent"
+    apk: APKs/PI.apk
+    must_find:
+      - id: mutable-pending-intent
+        owasp: "M8"
+        desc: >
+          An insecure PendingIntent: mutable and/or wrapping an implicit intent,
+          handed to another component, letting an attacker hijack/redirect it or
+          gain the app's identity/permissions.
+
+  SP:
+    name: "SSL Pinning"
+    apk: APKs/SP.apk
+    must_find:
+      - id: ssl-pinning-weak
+        owasp: "M5"
+        desc: >
+          SSL/TLS trust weakness: a custom TrustManager/HostnameVerifier that
+          trusts all certs, pinning that is absent or trivially bypassable, or
+          debug/user-CA trust in network_security_config — enabling MITM.
+
+  WV:
+    name: "WebView"
+    apk: APKs/WV.apk
+    must_find:
+      - id: insecure-webview
+        owasp: "M4"
+        desc: >
+          Insecure WebView: JavaScript enabled with addJavascriptInterface (JS
+          bridge to native), loading attacker-influenced/HTTP URLs, file access,
+          or loadData/loadUrl exposure — enabling script or bridge abuse.

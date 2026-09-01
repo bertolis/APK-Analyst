@@ -15,6 +15,8 @@ from dataclasses import dataclass
 import anthropic
 
 from .analyst import MODEL, SYSTEM_PROMPT, load_client
+from .citations import validate_report
+from .final_report import ConfirmRetry, produce_final_report
 from .models import AnalysisReport
 from .tools import TOOL_SCHEMAS, Toolbox
 
@@ -35,8 +37,10 @@ Investigate like a real analyst:
   surface — pull the native library apart with strings before concluding.
 - GROUND your findings: for each real issue, call search_knowledge with a short
   description of it to retrieve the matching OWASP MASVS control and course
-  notes, then record their citation labels in the finding's `standards`. Only
-  cite standards you actually retrieved — never invent a control id.
+  notes, then record their citation labels in the finding's `standards`. Prefer
+  the most specific label retrieved — a control id like MASVS-CRYPTO-2 over the
+  bare category MASVS-CRYPTO. Only cite standards you actually retrieved — never
+  invent a control id (post-processing drops any citation not in the knowledge base).
 - Be efficient: don't re-run the same tool with trivially different arguments.
   A couple of targeted strings_in_lib calls per library is enough — if the .so is
   stripped/obfuscated, record that and move on rather than repeating the search.
@@ -76,7 +80,8 @@ def _seed_context(summary: dict) -> str:
 
 
 def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
-                    max_iterations: int = MAX_ITERATIONS, verbose: bool = True) -> AgentResult:
+                    max_iterations: int = MAX_ITERATIONS, verbose: bool = True,
+                    on_expensive_retry: ConfirmRetry = None) -> AgentResult:
     client = client or load_client()
     tools = Toolbox(summary["workspace"])
 
@@ -105,11 +110,26 @@ def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
             results.append({"type": "tool_result", "tool_use_id": tu.id, "content": output})
         messages.append({"role": "user", "content": results})
 
-    # Final structured-output pass over the whole investigation.
+    # Final structured-output pass over the whole investigation. The scan is done
+    # by now; produce_final_report serialises it and recovers cheaply (local repair
+    # -> cheap JSON-fix -> gated expensive re-run) if the JSON comes back malformed,
+    # so a transient bad serialisation doesn't throw away a completed run.
     messages.append({"role": "user", "content": FINAL_INSTRUCTION})
-    final = client.messages.parse(
-        model=MODEL, max_tokens=16000,
-        system=AGENT_SYSTEM, tools=TOOL_SCHEMAS, messages=messages,
-        output_format=AnalysisReport,
+    report = produce_final_report(
+        client, model=MODEL, system=AGENT_SYSTEM, tools=TOOL_SCHEMAS,
+        messages=messages, max_tokens=16000,
+        on_expensive_retry=on_expensive_retry, verbose=verbose,
     )
-    return AgentResult(report=final.parsed_output, iterations=iterations, tool_calls=tool_calls)
+
+    # Ground-truth the citations: drop any `standards` label that isn't a real
+    # corpus ref (the model asserting a control it never retrieved). Cheap pass —
+    # only runs if the KB is loaded; if not, we can't validate so we leave them.
+    kb = tools._load_kb()
+    if kb is not None:
+        audit = validate_report(report, kb.valid_refs())
+        if verbose and audit.n_dropped:
+            print(f"  [citations] dropped {audit.n_dropped} unverifiable citation(s):")
+            for title, ref in audit.dropped:
+                print(f"      - {ref!r} on \"{title[:60]}\"")
+
+    return AgentResult(report=report, iterations=iterations, tool_calls=tool_calls)

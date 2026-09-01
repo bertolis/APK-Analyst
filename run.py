@@ -81,8 +81,22 @@ def main() -> None:
 
     if args.agent:
         from apk_analyst.ai.agent import analyze_agentic
+
+        def _confirm_expensive_retry(err) -> bool:
+            # The scan finished but the final report JSON couldn't be repaired
+            # cheaply. The only remaining option re-sends the whole investigation
+            # (the most expensive call in the run), so ask before spending.
+            print(f"\n!! Final report couldn't be produced cheaply ({err}).")
+            print("   The scan itself succeeded; retrying re-runs the full final "
+                  "call over the entire investigation (this costs the most of any "
+                  "call in the run).")
+            try:
+                return input("   Spend it and retry? [y/N] ").strip().lower() in ("y", "yes")
+            except EOFError:
+                return False
+
         print("\n=== Step 3: agentic investigation ===")
-        result = analyze_agentic(summary)
+        result = analyze_agentic(summary, on_expensive_retry=_confirm_expensive_retry)
         print(f"\n(investigated in {result.iterations} iterations, {len(result.tool_calls)} tool calls)")
         _print_ai_report(result.report)
         out = _Path(summary["workspace"]) / "agent_report.json"
