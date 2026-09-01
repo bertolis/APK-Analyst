@@ -15,6 +15,7 @@ from dataclasses import dataclass
 import anthropic
 
 from .analyst import MODEL, SYSTEM_PROMPT, load_client
+from .caching import cache_system, cache_tools, mark_rolling_cache, usage_delta
 from .citations import validate_report
 from .final_report import ConfirmRetry, produce_final_report
 from .models import AnalysisReport
@@ -89,12 +90,22 @@ def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
     tool_calls: list[str] = []
     iterations = 0
 
+    # Cache the two static prefixes once; roll a third breakpoint over the
+    # transcript each turn (see ai/caching.py). Big cost win over the ~16-iter loop.
+    system = cache_system(AGENT_SYSTEM)
+    tools_cached = cache_tools(TOOL_SCHEMAS)
+    cache_read = cache_write = 0
+
     while iterations < max_iterations:
         iterations += 1
+        mark_rolling_cache(messages)
         resp = client.messages.create(
             model=MODEL, max_tokens=8000,
-            system=AGENT_SYSTEM, tools=TOOL_SCHEMAS, messages=messages,
+            system=system, tools=tools_cached, messages=messages,
         )
+        r, w = usage_delta(resp.usage)
+        cache_read += r
+        cache_write += w
         messages.append({"role": "assistant", "content": resp.content})
 
         tool_uses = [b for b in resp.content if b.type == "tool_use"]
@@ -115,11 +126,15 @@ def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
     # -> cheap JSON-fix -> gated expensive re-run) if the JSON comes back malformed,
     # so a transient bad serialisation doesn't throw away a completed run.
     messages.append({"role": "user", "content": FINAL_INSTRUCTION})
+    mark_rolling_cache(messages)   # the big final call reuses the cached transcript
     report = produce_final_report(
-        client, model=MODEL, system=AGENT_SYSTEM, tools=TOOL_SCHEMAS,
+        client, model=MODEL, system=system, tools=tools_cached,
         messages=messages, max_tokens=16000,
         on_expensive_retry=on_expensive_retry, verbose=verbose,
     )
+    if verbose and (cache_read or cache_write):
+        print(f"  [cache] loop reused {cache_read} cached input token(s) "
+              f"(wrote {cache_write}) across {iterations} iteration(s).")
 
     # Ground-truth the citations: drop any `standards` label that isn't a real
     # corpus ref (the model asserting a control it never retrieved). Cheap pass —
