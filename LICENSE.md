@@ -2,7 +2,7 @@
 
 <https://polyformproject.org/licenses/noncommercial/1.0.0>
 
-Required Notice: Copyright 2026 Grigoris
+Required Notice: Copyright 2026 Grigorios Papoutsis
 
 ## Acceptance
 
