@@ -174,5 +174,5 @@ Reports are written to `workspace/<AppName>/`.
 
 ---
 
-*Built as a project exploring agentic AI applied to a real,
-domain-specific problem.*
+*Agentic AI applied to a real, domain-specific problem: autonomous static
+security analysis of Android APKs.*

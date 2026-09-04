@@ -1,8 +1,8 @@
 # Engineering Notes — features, optimizations & the reasoning behind them
 
 A deeper look at *what* was built into APKAnalyst beyond "call an LLM," *why*,
-and *how* each piece works. Written as an engineering talk-track: each section is
-a self-contained thing you can explain end-to-end.
+and *how* each piece works. Each section is self-contained and covers one
+feature end-to-end.
 
 Quick map of where each lives in the code:
 
@@ -51,8 +51,8 @@ cited standards — via the model's JSON-schema output mode.
 
 **Why:** Raw prose from an LLM isn't machine-usable and drifts in format. A strict
 schema makes the output sortable, scoreable (the evals depend on it), and
-trustworthy to a downstream consumer — the "raw input → structured output" shape
-of a real production tool.
+trustworthy to a downstream consumer — a clean "raw input → structured output"
+transformation.
 
 ---
 
@@ -96,10 +96,10 @@ the same prefix would be billed over and over without caching.
 *growing transcript* (native strings + tool outputs) dominates and one rolling
 breakpoint doesn't fully cover it.
 
-**Why it matters:** This is a good story precisely *because* the estimate was
-wrong and I measured it. The fix levers are known: more breakpoints on the
-transcript, trimming what's re-sent per iteration, or capping iterations —
-a real cost/latency-vs-coverage tradeoff, not a solved checkbox.
+**Why it matters:** The estimate was optimistic and measurement corrected it. The
+fix levers are known: more breakpoints on the transcript, trimming what's re-sent
+per iteration, or capping iterations — a real cost/latency-vs-coverage tradeoff,
+not a solved checkbox.
 
 ---
 
@@ -168,11 +168,11 @@ every *extra* finding for human review.
 course would be teaching-to-the-test; the static *discovery* patterns are already
 in the playbook, so a blind score is honest.
 
-**Why it matters:** The number I lead with is the *false-positive rate from human
+**Why it matters:** The headline metric is the *false-positive rate from human
 adjudication*, not just recall — because for a security tool, crying wolf is the
-failure mode that destroys trust. Having a measured FP rate **and** a concrete
-plan to lower it (tighten prompts / add KB rules for the borderline classes,
-re-run evals, compare) is the story.
+failure mode that destroys trust. A measured FP rate **and** a concrete plan to
+lower it (tighten prompts / add KB rules for the borderline classes, re-run
+evals, compare) is what makes the results actionable.
 
 ---
 
@@ -189,5 +189,5 @@ FP rate to improve against.
 
 ---
 
-*These notes track the engineering decisions worth explaining out loud. The
+*These notes track the engineering decisions behind the tool. The
 [README](README.md) is the quick tour; this is the deep dive.*
