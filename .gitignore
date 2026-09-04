@@ -16,6 +16,9 @@ apk_analyst/data/
 # eval run outputs (agent reports/scorecards derived from copyrighted challenge apps)
 eval/results/
 
+# webapp per-scan workspaces (uploaded APKs + decompiled trees)
+webapp/_jobs/
+
 # python
 __pycache__/
 *.pyc

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Callable, List, Optional
 
 import anthropic
 
@@ -22,6 +23,9 @@ from .models import AnalysisReport
 from .tools import TOOL_SCHEMAS, Toolbox
 
 MAX_ITERATIONS = 16   # safety cap so the loop always terminates
+
+# Optional UI hook: on_progress(iteration, max_iterations, last_tool_names).
+ProgressCb = Optional[Callable[[int, int, List[str]], None]]
 
 AGENT_SYSTEM = SYSTEM_PROMPT + """
 
@@ -82,7 +86,11 @@ def _seed_context(summary: dict) -> str:
 
 def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
                     max_iterations: int = MAX_ITERATIONS, verbose: bool = True,
-                    on_expensive_retry: ConfirmRetry = None) -> AgentResult:
+                    on_expensive_retry: ConfirmRetry = None,
+                    on_progress: "ProgressCb" = None) -> AgentResult:
+    """`on_progress`, if given, is called once per iteration as
+    on_progress(iteration, max_iterations, last_tool_names) so a UI can show
+    live progress. It must not raise."""
     client = client or load_client()
     tools = Toolbox(summary["workspace"])
 
@@ -120,6 +128,12 @@ def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
             output = tools.run(tu.name, tu.input)
             results.append({"type": "tool_result", "tool_use_id": tu.id, "content": output})
         messages.append({"role": "user", "content": results})
+
+        if on_progress is not None:
+            try:
+                on_progress(iterations, max_iterations, [tu.name for tu in tool_uses])
+            except Exception:
+                pass  # a UI hook must never break the scan
 
     # Final structured-output pass over the whole investigation. The scan is done
     # by now; produce_final_report serialises it and recovers cheaply (local repair

@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APKAnalyst</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --fg:#e7e9ee; --muted:#9aa3b2; --accent:#5b8cff; --accent2:#3a5bd9;
+    --crit:#ff5a5a; --high:#ff9036; --med:#f2c14e; --low:#5b8cff; --info:#8b93a7;
+    --ok:#3ecf8e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  a{color:var(--accent)}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 80px}
+  header h1{margin:0;font-size:26px;letter-spacing:.2px}
+  header p{margin:6px 0 0;color:var(--muted)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:20px;margin-top:22px}
+  label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+  input[type=password],input[type=text]{width:100%;padding:11px 12px;border-radius:9px;
+    border:1px solid var(--line);background:var(--panel2);color:var(--fg);font-size:14px}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:220px}
+  .modes{display:flex;gap:10px;margin-top:4px}
+  .mode{flex:1;border:1px solid var(--line);background:var(--panel2);border-radius:10px;
+    padding:12px 14px;cursor:pointer;transition:.15s}
+  .mode.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .mode b{display:block}.mode span{color:var(--muted);font-size:12.5px}
+  #drop{margin-top:16px;border:2px dashed var(--line);border-radius:14px;padding:38px 20px;
+    text-align:center;color:var(--muted);cursor:pointer;transition:.15s;background:var(--panel2)}
+  #drop.hover{border-color:var(--accent);color:var(--fg);background:#1b2030}
+  #drop b{color:var(--fg)}
+  .file{margin-top:12px;font-size:14px;color:var(--fg)}
+  button.go{margin-top:18px;width:100%;padding:13px;border:0;border-radius:10px;
+    background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+  button.go:disabled{opacity:.45;cursor:not-allowed}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:8px}
+  /* progress */
+  .bar{height:8px;border-radius:6px;background:var(--panel2);overflow:hidden;margin:14px 0 8px}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));
+    transition:width .4s}
+  .stage{font-size:14px}.stage .dot{color:var(--accent)}
+  .steps{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+  .step{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:3px 10px}
+  .step.on{color:var(--fg);border-color:var(--accent)}
+  .step.done{color:var(--ok);border-color:var(--ok)}
+  .err{color:var(--crit);white-space:pre-wrap}
+  /* report */
+  .summary{color:var(--fg);background:var(--panel2);border-left:3px solid var(--accent);
+    padding:12px 14px;border-radius:8px;margin:6px 0 16px}
+  .counts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .pill{font-size:12px;font-weight:600;border-radius:20px;padding:3px 11px;color:#0d0f14}
+  .finding{border:1px solid var(--line);border-left:4px solid var(--info);border-radius:11px;
+    padding:15px 16px;margin-top:12px;background:var(--panel)}
+  .finding h3{margin:0 0 4px;font-size:16px}
+  .meta{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+  .sev{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+    padding:2px 8px;border-radius:5px;color:#0d0f14;margin-right:8px}
+  .kv{margin:7px 0}.kv .k{color:var(--muted);font-size:12.5px}
+  .kv .v{white-space:pre-wrap}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+  .cites{margin-top:8px}
+  .cite{display:inline-block;font-size:11.5px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:6px;padding:2px 8px;margin:3px 6px 0 0;color:var(--muted)}
+  .foot{margin-top:30px;color:var(--muted);font-size:12.5px;text-align:center}
+  /* severity accents */
+  .s-critical{border-left-color:var(--crit)} .b-critical{background:var(--crit)}
+  .s-high{border-left-color:var(--high)}     .b-high{background:var(--high)}
+  .s-medium{border-left-color:var(--med)}    .b-medium{background:var(--med)}
+  .s-low{border-left-color:var(--low)}       .b-low{background:var(--low)}
+  .s-info{border-left-color:var(--info)}     .b-info{background:var(--info)}
+  .sev.s-critical{background:var(--crit)}.sev.s-high{background:var(--high)}
+  .sev.s-medium{background:var(--med)}.sev.s-low{background:var(--low)}.sev.s-info{background:var(--info)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>APKAnalyst</h1>
+    <p>Drop an Android APK — an AI security analyst agent investigates it and reports back.</p>
+  </header>
+
+  <!-- INPUT -->
+  <section class="card" id="form">
+    <div class="row">
+      <div>
+        <label>Anthropic API key</label>
+        <input id="key" type="password" placeholder="sk-ant-…  (leave blank to use the server's key)"
+               autocomplete="off">
+        <div class="hint">Used only for this scan — never stored or logged.
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get a key</a></div>
+      </div>
+    </div>
+
+    <label style="margin-top:16px">Scan mode</label>
+    <div class="modes">
+      <div class="mode sel" data-mode="agent">
+        <b>Full agentic</b><span>Agent explores with tools + RAG grounding. Best findings · ~minutes</span>
+      </div>
+      <div class="mode" data-mode="ai">
+        <b>Single-call</b><span>One structured pass, no tools. Faster &amp; cheaper · fewer findings</span>
+      </div>
+    </div>
+
+    <div id="drop">
+      <b>Drag &amp; drop an .apk here</b><br>or click to choose a file
+      <div class="file" id="file"></div>
+    </div>
+    <input id="picker" type="file" accept=".apk,application/vnd.android.package-archive" hidden>
+
+    <button class="go" id="go" disabled>Start scan</button>
+    <div class="hint" id="formErr"></div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section class="card" id="progress" hidden>
+    <div class="stage" id="stageText">Queued…</div>
+    <div class="bar"><i id="fill"></i></div>
+    <div class="steps" id="steps"></div>
+    <div class="hint" id="progDetail"></div>
+    <div class="err" id="runErr"></div>
+  </section>
+
+  <!-- REPORT -->
+  <section id="report" hidden></section>
+
+  <div class="foot">APKAnalyst · static-analysis-first AI security agent</div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const STAGES = ["decompiling","analyzing","finalizing","done"];
+const STAGE_LABEL = {queued:"Queued…",decompiling:"Decompiling the APK…",
+  analyzing:"Agent investigating…",finalizing:"Writing the report…",done:"Done"};
+let mode = "agent", file = null, poll = null;
+
+// mode toggle
+document.querySelectorAll(".mode").forEach(m => m.onclick = () => {
+  document.querySelectorAll(".mode").forEach(x => x.classList.remove("sel"));
+  m.classList.add("sel"); mode = m.dataset.mode;
+});
+
+// file pick + drag/drop
+const drop = $("#drop"), picker = $("#picker");
+drop.onclick = () => picker.click();
+picker.onchange = () => setFile(picker.files[0]);
+["dragenter","dragover"].forEach(e => drop.addEventListener(e, ev => {
+  ev.preventDefault(); drop.classList.add("hover"); }));
+["dragleave","drop"].forEach(e => drop.addEventListener(e, ev => {
+  ev.preventDefault(); drop.classList.remove("hover"); }));
+drop.addEventListener("drop", ev => { if (ev.dataTransfer.files[0]) setFile(ev.dataTransfer.files[0]); });
+
+function setFile(f){
+  if(!f) return;
+  if(!f.name.toLowerCase().endsWith(".apk")){ $("#formErr").textContent = "That isn't an .apk file."; return; }
+  file = f; $("#formErr").textContent = "";
+  $("#file").textContent = "📦 " + f.name + "  (" + (f.size/1048576).toFixed(1) + " MB)";
+  $("#go").disabled = false;
+}
+
+// start
+$("#go").onclick = async () => {
+  if(!file) return;
+  $("#go").disabled = true; $("#formErr").textContent = "";
+  const fd = new FormData();
+  fd.append("apk", file); fd.append("mode", mode); fd.append("api_key", $("#key").value);
+  $("#report").hidden = true; $("#progress").hidden = false; $("#runErr").textContent = "";
+  renderSteps("queued"); setFill(4);
+  try{
+    const r = await fetch("/api/scan", {method:"POST", body:fd});
+    if(!r.ok){ throw new Error((await r.json()).detail || r.statusText); }
+    const {job_id} = await r.json();
+    poll = setInterval(() => checkStatus(job_id), 1800);
+    checkStatus(job_id);
+  }catch(e){
+    $("#runErr").textContent = "Could not start scan: " + e.message;
+    $("#go").disabled = false;
+  }
+};
+
+async function checkStatus(id){
+  let s;
+  try{ s = await (await fetch("/api/status/"+id)).json(); }catch{ return; }
+  $("#stageText").innerHTML = (STAGE_LABEL[s.stage]||s.stage) +
+     (s.app_name ? ' <span class="dot">· '+esc(s.app_name)+'</span>' : '');
+  renderSteps(s.stage);
+  if(s.mode === "agent" && s.max_iterations){
+    setFill(15 + Math.min(80, (s.iteration/s.max_iterations)*80));
+    $("#progDetail").textContent = `iteration ${s.iteration}/${s.max_iterations} · ${s.tool_calls} tool calls`;
+  } else if(s.stage!=="done" && s.stage!=="error"){
+    setFill(s.stage==="decompiling"?20:55);
+  }
+  if(s.done){
+    clearInterval(poll);
+    if(s.stage === "error"){
+      $("#runErr").textContent = "Scan failed — " + (s.error||"unknown error");
+      $("#go").disabled = false; return;
+    }
+    setFill(100); $("#progDetail").textContent = "";
+    const rep = await (await fetch("/api/report/"+id)).json();
+    renderReport(rep); $("#go").disabled = false;
+  }
+}
+
+function renderSteps(stage){
+  const box = $("#steps"); box.innerHTML = "";
+  const idx = STAGES.indexOf(stage);
+  STAGES.forEach((st,i) => {
+    const el = document.createElement("span");
+    el.className = "step" + (stage==="done"&&st==="done" ? " done"
+       : i<idx ? " done" : i===idx ? " on" : "");
+    el.textContent = st;
+    box.appendChild(el);
+  });
+}
+function setFill(pct){ $("#fill").style.width = Math.max(0,Math.min(100,pct)) + "%"; }
+
+// report rendering
+const ORDER = {critical:0,high:1,medium:2,low:3,info:4};
+function renderReport(rep){
+  const findings = (rep.findings||[]).slice().sort((a,b)=>(ORDER[a.severity]??9)-(ORDER[b.severity]??9));
+  const counts = {critical:0,high:0,medium:0,low:0,info:0};
+  findings.forEach(f => counts[f.severity]=(counts[f.severity]||0)+1);
+  const meta = rep._meta||{};
+  const metaTxt = meta.mode==="agentic"
+     ? `agentic · ${meta.iterations} iterations · ${meta.tool_calls} tool calls`
+     : "single-call";
+
+  let html = `<div class="card">
+    <h2 style="margin:0 0 4px">Security report</h2>
+    <div class="meta">${findings.length} finding(s) · ${esc(metaTxt)}</div>
+    <div class="counts">` +
+    Object.entries(counts).filter(([,n])=>n).map(([s,n])=>
+      `<span class="pill b-${s}">${n} ${s}</span>`).join("") + `</div>
+    <div class="summary">${esc(rep.summary||"")}</div>`;
+
+  html += findings.map(f => `
+    <div class="finding s-${f.severity}">
+      <h3><span class="sev s-${f.severity}">${esc(f.severity)}</span>${esc(f.title)}</h3>
+      <div class="meta">${esc(f.owasp_mobile||"")} · ${esc(f.cwe||"")} · confidence: ${esc(f.confidence||"")}</div>
+      ${kv("Location", f.location, true)}
+      ${kv("Evidence", f.evidence, true)}
+      ${kv("Exploit path", f.exploit_path)}
+      ${kv("Recommendation", f.recommendation)}
+      ${(f.standards&&f.standards.length)?`<div class="cites">`+
+        f.standards.map(c=>`<span class="cite">${esc(c)}</span>`).join("")+`</div>`:""}
+    </div>`).join("");
+  html += `</div>`;
+  const box = $("#report"); box.innerHTML = html; box.hidden = false;
+  box.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function kv(k,v,mono){ if(!v) return ""; return `<div class="kv"><div class="k">${k}</div>`+
+  `<div class="v ${mono?"mono":""}">${esc(v)}</div></div>`; }
+function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+</script>
+</body>
+</html>
