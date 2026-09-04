@@ -188,5 +188,12 @@ Reports are written to `workspace/<AppName>/`.
 
 ---
 
+## License
+
+[PolyForm Noncommercial License 1.0.0](LICENSE.md) — free to view, use, and build
+on for **noncommercial** purposes; all commercial rights reserved by the author.
+
+---
+
 *Agentic AI applied to a real, domain-specific problem: autonomous static
 security analysis of Android APKs.*
