@@ -14,6 +14,20 @@ maps to instead of relying on the model's memory.
 
 ---
 
+## Demo
+
+Drag in an APK, pick a scan mode, and read the prioritized report in the browser
+(with a one-click **Download PDF**):
+
+<!-- Record against a self-built demo APK (not a copyrighted one) and save the
+     clip to docs/demo.gif — it will render here on GitHub once committed. -->
+![APKAnalyst web UI — drag-and-drop scan to report](docs/demo.gif)
+
+> Run it yourself: `python3 -m uvicorn webapp.server:app --port 8077` → open
+> <http://127.0.0.1:8077>. See [`webapp/README.md`](webapp/README.md).
+
+---
+
 ## Why this design
 
 Decompiled APKs are large, messy, unstructured data — exactly where an LLM
