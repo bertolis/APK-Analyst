@@ -71,7 +71,15 @@ records the citations on each finding.
 | Tool use / function calling | `ai/tools.py` — sandboxed toolbox with path-safety |
 | Agentic loop | `ai/agent.py` — plan → call tools → observe → iterate |
 | RAG (embeddings + vector store) | `knowledge/` — Voyage embeddings, cosine retrieval |
-| Context management | `ai/context.py` — packs extracted facts within token limits |
+| Context management & prompt caching | `ai/context.py` — fact packing; `ai/caching.py` — cached static prefixes + rolling breakpoint |
+| Reliability — broken-JSON recovery cascade | `ai/final_report.py` — local repair → cheap Haiku fix → gated re-run |
+| Anti-hallucination — citation validation | `ai/citations.py` — drops any cited standard not in the corpus |
+| Evals + LLM-as-judge | `eval/` — blind 6-app set; 6/6 recall, ~2.1% FP |
+
+> **Deeper dive:** [`ENGINEERING.md`](ENGINEERING.md) explains each feature and
+> optimization end-to-end — the agentic loop, the RAG rulebook/playbook split,
+> prompt caching (and the honest measured cost), the recovery cascade, citation
+> validation, and the eval/adjudication trust story.
 
 ---
 
@@ -161,7 +169,8 @@ Reports are written to `workspace/<AppName>/`.
 - [x] **Step 2** — Structured single-call analysis
 - [x] **Step 3** — Agentic tool-use loop
 - [x] **Step 4** — RAG grounding (MASVS rulebook + methodology playbook)
-- [ ] **Step 5** — Evals: measure precision / recall / false-positive rate on known-vulnerable APKs
+- [x] **Step 5** — Evals on known-vulnerable APKs: **6/6 recall (100%)**, false-positive rate **~2.1%** (blind, human-adjudicated)
+- [ ] **Next** — HTML/PDF report export; context-management for very large codebases; MCP
 
 ---
 
