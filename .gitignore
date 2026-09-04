@@ -1,6 +1,9 @@
 # secrets
 .env
 
+# private study notes (personal reference) — never published
+STUDY_NOTES.md
+
 # pipeline output (decompiled trees, reports)
 workspace/
 
