@@ -10,9 +10,10 @@
 
 Generated: 2026-08-30 · Baseline: 6/6 recall · 74 unlabeled findings
 
-**⚠️ DRAFT — Claude's first pass (2026-09-01).** Every mark below is grounded in the actual
-quoted evidence in `workspace/<app>/agent_report.json`. Calls tagged **(borderline)** are the
-ones worth your scrutiny — flip any you disagree with, then update the tally.
+**✅ LOCKED — the author reviewed & accepted the draft as-is (2026-09-04).** All 6 borderline
+calls confirmed (CA host/port = FP; the IL/WV NPE crashes and the three PI resilience items
+stay R). Every mark is grounded in the quoted evidence in `workspace/<app>/agent_report.json`.
+**Final FP rate = 1/48 ≈ 2.1%, 0 FP on the 6 graded vulns, 6/6 recall.**
 
 ---
 
