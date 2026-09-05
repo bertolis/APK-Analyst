@@ -40,6 +40,20 @@ single-call pass asserted.
 
 ---
 
+## Try it on the bundled sample app
+
+A purpose-built, intentionally-vulnerable app ships in [`sample-app/`](sample-app/)
+so you can run a full scan against a **known ground truth** (11 planted vulns,
+mapped to the OWASP Mobile Top 10):
+
+```bash
+python3 run.py sample-app/SecureVault.apk --agent
+```
+
+See [`sample-app/README.md`](sample-app/README.md) for the vulnerability table.
+
+---
+
 ## Why this design
 
 Decompiled APKs are large, messy, unstructured data — exactly where an LLM
