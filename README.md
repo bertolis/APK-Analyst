@@ -23,8 +23,19 @@ Drag in an APK, pick a scan mode, and read the prioritized report in the browser
      clip to docs/demo.gif — it will render here on GitHub once committed. -->
 ![APKAnalyst web UI — drag-and-drop scan to report](docs/demo.gif)
 
-> Run it yourself: `python3 -m uvicorn webapp.server:app --port 8077` → open
-> <http://127.0.0.1:8077>. See [`webapp/README.md`](webapp/README.md).
+### Run the web app locally
+
+From inside `apk-analyst/`:
+
+```bash
+pip install -r requirements.txt
+python3 -m uvicorn webapp.server:app --port 8077
+```
+
+Open <http://127.0.0.1:8077>. Provide an Anthropic API key either in a local
+`.env` (`ANTHROPIC_API_KEY=...`) or by pasting one into the form per scan. For
+agentic RAG grounding, also set `VOYAGE_API_KEY` and build the index once with
+`python3 run.py --build-kb`. More detail in [`webapp/README.md`](webapp/README.md).
 
 ---
 
