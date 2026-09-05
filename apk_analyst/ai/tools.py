@@ -62,7 +62,7 @@ TOOL_SCHEMAS = [
         "name": "strings_in_lib",
         "description": "Run `strings` on a native .so library and return printable strings, "
                        "optionally filtered by a substring. Path relative to workspace root "
-                       "(e.g. 'apktool/lib/arm64-v8a/libcommsapp.so').",
+                       "(e.g. 'apktool/lib/arm64-v8a/libnative.so').",
         "input_schema": {
             "type": "object",
             "properties": {

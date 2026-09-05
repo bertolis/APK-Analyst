@@ -152,8 +152,9 @@ deliberately deferred; the cheap check already kills fabricated citations.
 
 ## 7. Evals + human adjudication (the trust story)
 
-**What:** A 6-app eval set (security-course APKs), each with one known
-headline vuln the agent never sees. A harness runs the agent **blind**, and an
+**What:** A 6-app eval set of deliberately-vulnerable teaching APKs (from a
+mobile-security course; not redistributed), each with one known headline vuln the
+agent never sees. A harness runs the agent **blind**, and an
 **LLM-as-judge** (cheap model) scores each graded issue caught/missed and lists
 every *extra* finding for human review.
 
