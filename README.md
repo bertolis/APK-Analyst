@@ -28,6 +28,18 @@ Drag in an APK, pick a scan mode, and read the prioritized report in the browser
 
 ---
 
+## Case study — does the agentic loop earn its cost?
+
+A controlled, **blind** test on a real, obscure open-source app (no memorized
+CVEs): both scan modes hit **3/3** known issues, but the agentic loop backed each
+with quoted evidence, found **3 extra code-level bugs** (path-traversal bypass,
+stored XSS, DoS) the manifest can't reveal, and **retracted a false positive** the
+single-call pass asserted.
+
+**→ [Read the full case study](docs/CASE_STUDY_lWS.md)**
+
+---
+
 ## Why this design
 
 Decompiled APKs are large, messy, unstructured data — exactly where an LLM
