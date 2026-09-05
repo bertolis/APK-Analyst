@@ -112,3 +112,9 @@ On a genuinely blind target, the agentic loop backed every finding with quoted
 evidence, uncovered three real code-level bugs beyond the manifest, and retracted
 a false positive — with no sign of memorized bias. That is the case for spending
 the extra tokens.
+
+---
+
+*Credit: lWS is an open-source project by M. Basov ([mvbasov/lWS](https://github.com/mvbasov/lWS)),
+licensed GPL-3.0. It is used here only as a neutral, publicly-available analysis
+target; all findings above are illustrative.*
