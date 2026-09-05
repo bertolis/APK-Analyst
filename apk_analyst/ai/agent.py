@@ -131,7 +131,15 @@ def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
 
         if on_progress is not None:
             try:
-                on_progress(iterations, max_iterations, [tu.name for tu in tool_uses])
+                # A readable one-liner per tool call, e.g.
+                # "read_file(net/basov/lws/b.java)" or "grep(authoriz|token)".
+                calls = []
+                for tu in tool_uses:
+                    inp = tu.input or {}
+                    arg = inp.get("path") or inp.get("pattern") or inp.get("query") \
+                          or next(iter(inp.values()), "")
+                    calls.append(f"{tu.name}({str(arg)[:70]})")
+                on_progress(iterations, max_iterations, calls)
             except Exception:
                 pass  # a UI hook must never break the scan
 

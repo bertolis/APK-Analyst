@@ -49,6 +49,15 @@
   .step.on{color:var(--fg);border-color:var(--accent)}
   .step.done{color:var(--ok);border-color:var(--ok)}
   .err{color:var(--crit);white-space:pre-wrap}
+  /* live activity console */
+  .console{margin:14px 0 0;background:#0b0d12;border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;max-height:230px;overflow-y:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12px;line-height:1.7;color:#c7cede;scroll-behavior:smooth}
+  .console:empty{display:none}
+  .console .ln{white-space:pre-wrap;word-break:break-word}
+  .console .ln .t{color:#5f6b82}                 /* timestamp */
+  .console .ln.tool .m{color:var(--accent)}      /* agent tool call */
+  .console .ln.stage .m{color:var(--ok)}         /* pipeline stage */
   /* report */
   .summary{color:var(--fg);background:var(--panel2);border-left:3px solid var(--accent);
     padding:12px 14px;border-radius:8px;margin:6px 0 16px}
@@ -139,6 +148,7 @@
     <div class="bar"><i id="fill"></i></div>
     <div class="steps" id="steps"></div>
     <div class="hint" id="progDetail"></div>
+    <div class="console" id="console"></div>
     <div class="err" id="runErr"></div>
   </section>
 
@@ -186,6 +196,7 @@ $("#go").onclick = async () => {
   const fd = new FormData();
   fd.append("apk", file); fd.append("mode", mode); fd.append("api_key", $("#key").value);
   $("#report").hidden = true; $("#progress").hidden = false; $("#runErr").textContent = "";
+  $("#console").innerHTML = ""; _logLen = 0;
   renderSteps("queued"); setFill(4);
   try{
     const r = await fetch("/api/scan", {method:"POST", body:fd});
@@ -205,6 +216,7 @@ async function checkStatus(id){
   $("#stageText").innerHTML = (STAGE_LABEL[s.stage]||s.stage) +
      (s.app_name ? ' <span class="dot">· '+esc(s.app_name)+'</span>' : '');
   renderSteps(s.stage);
+  renderLog(s.log || []);
   if(s.mode === "agent" && s.max_iterations){
     setFill(15 + Math.min(80, (s.iteration/s.max_iterations)*80));
     $("#progDetail").textContent = `iteration ${s.iteration}/${s.max_iterations} · ${s.tool_calls} tool calls`;
@@ -235,6 +247,23 @@ function renderSteps(stage){
   });
 }
 function setFill(pct){ $("#fill").style.width = Math.max(0,Math.min(100,pct)) + "%"; }
+
+// live activity console — re-render only when new lines arrive; keep pinned to bottom
+let _logLen = 0;
+function renderLog(lines){
+  if(lines.length === _logLen) return;
+  _logLen = lines.length;
+  const box = $("#console");
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  box.innerHTML = lines.map(raw => {
+    const m = raw.match(/^\s*([\d.]+s)\s+([\s\S]*)$/);
+    const t = m ? m[1] : "", msg = m ? m[2] : raw;
+    const cls = /^iter\s/.test(msg) ? "tool"
+              : /(Unpacking|Decompiling|Parsing|Inventorying|Detecting|complete|Report ready)/.test(msg) ? "stage" : "";
+    return `<div class="ln ${cls}"><span class="t">${esc(t)}</span>  <span class="m">${esc(msg)}</span></div>`;
+  }).join("");
+  if(atBottom) box.scrollTop = box.scrollHeight;
+}
 
 // report rendering
 const ORDER = {critical:0,high:1,medium:2,low:3,info:4};

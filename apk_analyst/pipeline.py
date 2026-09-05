@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from pathlib import Path
+from typing import Callable, Optional
 
 from androguard import util as _ag_util
 
@@ -24,7 +25,18 @@ from .framework import detect_framework
 _ag_util.set_log("ERROR")  # silence androguard's verbose loguru output
 
 
-def analyze(apk_path: str, workspace: str = "workspace") -> dict:
+def analyze(apk_path: str, workspace: str = "workspace",
+            on_step: Optional[Callable[[str], None]] = None) -> dict:
+    """`on_step`, if given, is called with a short human-readable line before
+    each extraction sub-stage so a UI can stream progress (unpacking, decompiling
+    …). It must never raise into the pipeline."""
+    def step(msg: str) -> None:
+        if on_step is not None:
+            try:
+                on_step(msg)
+            except Exception:
+                pass  # a UI hook must never break the pipeline
+
     apk = Path(apk_path).resolve()
     if not apk.is_file():
         raise FileNotFoundError(apk)
@@ -32,11 +44,17 @@ def analyze(apk_path: str, workspace: str = "workspace") -> dict:
     work = Path(workspace) / apk.stem
     work.mkdir(parents=True, exist_ok=True)
 
+    step("Parsing AndroidManifest.xml (permissions, components)…")
     manifest = extract_manifest(str(apk))
+    step("Detecting app framework (native / RN / Flutter / Xamarin)…")
     frameworks = detect_framework(str(apk))
+    step("Inventorying native libraries (.so)…")
     natives = inventory_natives(str(apk))
+    step("Decompiling Java with jadx…")
     jadx = run_jadx(str(apk), str(work / "jadx"))
+    step("Unpacking smali + resources with apktool…")
     apktool = run_apktool(str(apk), str(work / "apktool"))
+    step("Extraction complete — handing off to the analyst.")
 
     summary = {
         "apk": {

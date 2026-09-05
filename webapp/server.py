@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import shutil
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -62,6 +63,18 @@ class Job:
     error: Optional[str] = None
     report: Optional[dict] = None   # report_to_dict payload once done
     app_name: Optional[str] = None
+    log: list[str] = field(default_factory=list)  # streamed activity lines
+    _t0: float = field(default_factory=time.monotonic)
+
+    _MAX_LOG = 250  # keep memory bounded on long agentic runs
+
+    def add_log(self, line: str) -> None:
+        """Append one timestamped activity line (thread-safe, capped)."""
+        stamp = f"{time.monotonic() - self._t0:6.1f}s"
+        with _LOCK:
+            self.log.append(f"{stamp}  {line}")
+            if len(self.log) > self._MAX_LOG:
+                del self.log[: len(self.log) - self._MAX_LOG]
 
     def public(self) -> dict:
         """Status view (never includes the report body or any key)."""
@@ -70,6 +83,7 @@ class Job:
             "iteration": self.iteration, "max_iterations": self.max_iterations,
             "tool_calls": self.tool_calls, "error": self.error,
             "app_name": self.app_name, "done": self.stage in ("done", "error"),
+            "log": list(self.log),
         }
 
 
@@ -85,29 +99,39 @@ def _run_scan(job: Job, apk_path: Path, api_key: Optional[str]) -> None:
         client = anthropic.Anthropic(api_key=api_key) if api_key else None
 
         job.stage = "decompiling"
-        summary = analyze(str(apk_path), workspace=str(apk_path.parent / "workspace"))
+        job.add_log(f"Unpacking {apk_path.name}…")
+        summary = analyze(str(apk_path), workspace=str(apk_path.parent / "workspace"),
+                          on_step=job.add_log)
         job.app_name = summary["apk"]["name"]
 
         job.stage = "analyzing"
         if job.mode == "ai":
+            job.add_log("Single-call analysis: one structured pass over the extracted facts…")
             report = analyze_with_ai(summary, client=client)
             payload = report_to_dict(report)
             payload["_meta"] = {"mode": "single-call"}
         else:
             from apk_analyst.ai.agent import analyze_agentic
 
+            job.add_log("Agent starting investigation (tool-driven loop)…")
+
             def _progress(i: int, mx: int, tools: list[str]) -> None:
                 job.iteration, job.max_iterations = i, mx
                 job.tool_calls += len(tools)
+                for call in tools:
+                    job.add_log(f"iter {i}/{mx} · {call}")
 
             # Unattended: on_expensive_retry left as default (auto-retries once).
             result = analyze_agentic(summary, client=client, verbose=False,
                                      on_progress=_progress)
             job.stage = "finalizing"
+            job.add_log(f"Investigation done ({result.iterations} iterations, "
+                        f"{len(result.tool_calls)} tool calls) — writing the report…")
             payload = report_to_dict(result.report)
             payload["_meta"] = {"mode": "agentic", "iterations": result.iterations,
                                 "tool_calls": result.tool_calls}
 
+        job.add_log(f"Report ready: {len(payload.get('findings', []))} finding(s).")
         job.report = payload
         job.stage = "done"
     except anthropic.AuthenticationError:
