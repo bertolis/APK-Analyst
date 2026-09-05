@@ -25,8 +25,12 @@ from .tools import TOOL_SCHEMAS, Toolbox
 
 MAX_ITERATIONS = 16   # safety cap so the loop always terminates
 
-# Optional UI hook: on_progress(iteration, max_iterations, last_tool_names).
-ProgressCb = Optional[Callable[[int, int, List[str]], None]]
+# Optional UI hook. Called once per iteration as
+# on_progress(iteration, max_iterations, tool_infos, thought) where tool_infos is
+# a list of {"name","input","display"} and thought is the model's short reasoning
+# text for this turn (may be ""). A UI can show the display lines always and the
+# input/thought only in a verbose mode.
+ProgressCb = Optional[Callable[[int, int, List[dict], str], None]]
 # Optional cancel hook: returns True when the user has asked to stop.
 CancelCb = Optional[Callable[[], bool]]
 
@@ -141,15 +145,20 @@ def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
 
         if on_progress is not None:
             try:
-                # A readable one-liner per tool call, e.g.
-                # "read_file(net/basov/lws/b.java)" or "grep(authoriz|token)".
-                calls = []
+                # The model's short reasoning text for this turn (verbose UIs show it).
+                thought = " ".join(
+                    b.text.strip() for b in resp.content if b.type == "text"
+                ).strip()[:240]
+                # One entry per tool call: a readable display line plus the raw
+                # input (verbose UIs can show the full input).
+                infos = []
                 for tu in tool_uses:
                     inp = tu.input or {}
                     arg = inp.get("path") or inp.get("pattern") or inp.get("query") \
                           or next(iter(inp.values()), "")
-                    calls.append(f"{tu.name}({str(arg)[:70]})")
-                on_progress(iterations, max_iterations, calls)
+                    infos.append({"name": tu.name, "input": inp,
+                                  "display": f"{tu.name}({str(arg)[:70]})"})
+                on_progress(iterations, max_iterations, infos, thought)
             except Exception:
                 pass  # a UI hook must never break the scan
 

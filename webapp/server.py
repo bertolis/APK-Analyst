@@ -24,6 +24,7 @@ Design notes
 """
 from __future__ import annotations
 
+import json
 import shutil
 import threading
 import time
@@ -65,6 +66,7 @@ class Job:
     report: Optional[dict] = None   # report_to_dict payload once done
     app_name: Optional[str] = None
     cancel: bool = False            # set by /api/cancel; polled by the scan
+    verbose: bool = False           # log agent reasoning + full tool inputs
     log: list[str] = field(default_factory=list)  # streamed activity lines
     _t0: float = field(default_factory=time.monotonic)
 
@@ -124,11 +126,15 @@ def _run_scan(job: Job, apk_path: Path, api_key: Optional[str]) -> None:
             job.add_log("Agent starting investigation — planning first moves "
                         "(each iteration streams below as it runs)…")
 
-            def _progress(i: int, mx: int, tools: list[str]) -> None:
+            def _progress(i: int, mx: int, infos: list[dict], thought: str = "") -> None:
                 job.iteration, job.max_iterations = i, mx
-                job.tool_calls += len(tools)
-                for call in tools:
-                    job.add_log(f"iter {i}/{mx} · {call}")
+                job.tool_calls += len(infos)
+                if job.verbose and thought:
+                    job.add_log(f"  thinking: {thought}")
+                for t in infos:
+                    job.add_log(f"iter {i}/{mx} · {t['display']}")
+                    if job.verbose:
+                        job.add_log(f"    input: {json.dumps(t['input'])[:300]}")
 
             # Unattended: on_expensive_retry left as default (auto-retries once).
             result = analyze_agentic(summary, client=client, verbose=False,
@@ -164,7 +170,7 @@ def _run_scan(job: Job, apk_path: Path, api_key: Optional[str]) -> None:
 
 @app.post("/api/scan")
 async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
-               api_key: str = Form("")) -> JSONResponse:
+               api_key: str = Form(""), verbose: str = Form("")) -> JSONResponse:
     if mode not in ("agent", "ai"):
         raise HTTPException(400, "mode must be 'agent' or 'ai'")
     name = (apk.filename or "").strip()
@@ -186,7 +192,7 @@ async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
                 raise HTTPException(413, "APK exceeds the 200 MB upload limit")
             f.write(chunk)
 
-    job = Job(id=job_id, mode=mode)
+    job = Job(id=job_id, mode=mode, verbose=verbose.lower() in ("1", "true", "on", "yes"))
     with _LOCK:
         _JOBS[job_id] = job
     key = api_key.strip() or None
