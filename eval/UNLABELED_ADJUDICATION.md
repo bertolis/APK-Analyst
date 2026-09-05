@@ -25,7 +25,7 @@ stay R). Every mark is grounded in the quoted evidence in `workspace/<app>/agent
 - [R] Chat history stored in local SQLite database recoverable with the shipped key — key is hardcoded, so DB is trivially decryptable
 - [R] allowBackup=true with permissive backup rules exposes the message database — empty `<full-backup-content/>` confirmed
 - [R] Over-broad storage permissions requested but never used — READ/WRITE/MANAGE_EXTERNAL_STORAGE, no storage code
-- [INFO] Native library libcommsapp.so: obfuscated JNI entry point — "flagged for deeper native review" hedge, not a confident vuln
+- [INFO] Native library libnative.so: obfuscated JNI entry point — "flagged for deeper native review" hedge, not a confident vuln
 - [R] No integrity/authenticity check on server responses before decryption — real (low) design weakness, code-backed
 - [FP] Server host and port fully attacker/user controllable with no validation — **(borderline)** the user intentionally types their own server IP/port; no attacker trust-boundary is crossed here, so this reads as intended behaviour rather than a vuln
 - [INFO] Exported launcher activity (informational) — self-labeled informational; a launcher must be exported

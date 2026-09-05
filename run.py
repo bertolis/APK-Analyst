@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """CLI entry for the Step 1 extraction pipeline.
 
-    python3 run.py APKs/CommsApp.apk
+    python3 run.py APKs/YourApp.apk
 """
 from __future__ import annotations
 
