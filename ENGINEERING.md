@@ -63,8 +63,8 @@ It has **two deliberately different roles**:
 
 - **Rulebook = OWASP MASVS** (control-level, e.g. `MASVS-CRYPTO-2`) — cites *what
   standard* a finding violates.
-- **Playbook = curated analyst methodology** (static/malware analysis course
-  notes) — guides *how to find and confirm* an issue.
+- **Playbook = curated analyst methodology** (static/malware analysis
+  methodology notes) — guides *how to find and confirm* an issue.
 
 **Why:** Two different jobs. The model already "knows" security generically;
 grounding stops it citing standards from memory (a subtle hallucination) and
@@ -153,7 +153,7 @@ deliberately deferred; the cheap check already kills fabricated citations.
 ## 7. Evals + human adjudication (the trust story)
 
 **What:** A 6-app eval set of deliberately-vulnerable teaching APKs (from a
-mobile-security course; not redistributed), each with one known headline vuln the
+private mobile-security training set; not redistributed), each with one known headline vuln the
 agent never sees. A harness runs the agent **blind**, and an
 **LLM-as-judge** (cheap model) scores each graded issue caught/missed and lists
 every *extra* finding for human review.
@@ -165,9 +165,9 @@ every *extra* finding for human review.
   issues, 26 honest negative/inventory notes, 1 false positive.
 - **0 false positives on the graded vulns.**
 
-**Why blind (didn't train on the challenges' own course):** ingesting the source
-course would be teaching-to-the-test; the static *discovery* patterns are already
-in the playbook, so a blind score is honest.
+**Why blind (didn't train on the eval apps' own source material):** ingesting the
+apps' own walkthroughs would be teaching-to-the-test; the static *discovery*
+patterns are already in the playbook, so a blind score is honest.
 
 **Why it matters:** The headline metric is the *false-positive rate from human
 adjudication*, not just recall — because for a security tool, crying wolf is the

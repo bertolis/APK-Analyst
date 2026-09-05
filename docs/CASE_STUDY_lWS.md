@@ -19,7 +19,8 @@ training**. To avoid that, the target was picked to be:
   ~54 KB LAN web server on F-Droid, with no CVE writeups for the model to memorize.
 
 **Bias controls:** APKAnalyst reads only the decompiled bytes of *this* APK plus
-its local knowledge base (OWASP MASVS + course methodology). It has **no web
+its local knowledge base (OWASP MASVS controls + a curated static-analysis
+methodology playbook). It has **no web
 access** and was never shown lWS's source, README, or issue tracker. Ground truth
 was read from upstream **by a human, after the scans** — never fed to the agent.
 Each scan is **stateless**, so running the cheap scan first could not bias the
@@ -64,7 +65,7 @@ while agentic *proved* each finding from the decompiled bytecode.
 | Findings | **6** (1H / 3M / 1L / 1I) | **11** (2H / 1M / 4L / 4I) |
 | Basis | Manifest only | Java + smali, 16 iterations, 21 tool calls |
 | Code-level bugs | 0 (all tentative) | **3 real** (below) |
-| Citations | none | MASVS controls + course notes per finding |
+| Citations | none | MASVS controls + methodology playbook per finding |
 | False positives | **1** (see below) | 0 (caught & corrected it) |
 
 ### Three bugs only the agentic scan found

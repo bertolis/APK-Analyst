@@ -1,8 +1,8 @@
 # Ground truth for the Step 5 eval set.
 # Source: a private set of deliberately-vulnerable Android teaching apps
-# (from a mobile-security course; the APKs are not redistributed).
+# (a private mobile-security training set; the APKs are not redistributed).
 # These are deliberately-vulnerable teaching apps; each has one HEADLINE issue
-# (the class the course exercise targets). The bar we score is DISCOVERY:
+# (the class the exercise targets). The bar we score is DISCOVERY:
 # did the static agent flag the vulnerable *surface*? (Not: did it exploit it.)
 #
 # `must_find` = the graded issue(s). Anything the agent reports beyond these is

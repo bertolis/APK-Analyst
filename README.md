@@ -77,9 +77,9 @@ Findings are grounded in a local vector knowledge base with two roles:
 
 - **Rulebook — OWASP MASVS.** The Mobile App Security Verification Standard
   controls, so a finding cites *what standard* it violates.
-- **Playbook — analyst methodology.** Curated static-analysis course notes
-  (static analysis, malware analysis, OWASP Mobile Top 10, tooling) that guide
-  *how to find and confirm* an issue.
+- **Playbook — analyst methodology.** A curated static-analysis methodology
+  base (static analysis, malware analysis, OWASP Mobile Top 10, tooling) that
+  guides *how to find and confirm* an issue.
 
 Sources are embedded once with [Voyage AI](https://voyageai.com) and stored in a
 small local numpy vector store; at analysis time the agent calls
@@ -153,8 +153,8 @@ python3 run.py --build-kb
 ```
 
 > The knowledge index and any fetched standards are git-ignored — rebuild them
-> locally with the command above. The playbook is sourced from local course
-> notes that are not distributed with the repo.
+> locally with the command above. The playbook is sourced from local
+> methodology notes that are not distributed with the repo.
 
 ## Usage
 
