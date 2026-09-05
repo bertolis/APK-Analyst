@@ -73,7 +73,7 @@
   .finding{border:1px solid var(--line);border-left:4px solid var(--info);border-radius:11px;
     padding:15px 16px;margin-top:12px;background:var(--panel)}
   .finding h3{margin:0 0 4px;font-size:16px}
-  .meta{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+  .meta{font-size:12.5px;color:var(--muted);margin-bottom:10px;overflow-wrap:anywhere;word-break:break-word}
   .sev{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
     padding:2px 8px;border-radius:5px;color:#0d0f14;margin-right:8px}
   .kv{margin:7px 0}.kv .k{color:var(--muted);font-size:12.5px}
@@ -311,8 +311,9 @@ function renderReport(rep){
   const counts = {critical:0,high:0,medium:0,low:0,info:0};
   findings.forEach(f => counts[f.severity]=(counts[f.severity]||0)+1);
   const meta = rep._meta||{};
+  const nTools = Array.isArray(meta.tool_calls) ? meta.tool_calls.length : (meta.tool_calls||0);
   const metaTxt = meta.mode==="agentic"
-     ? `agentic · ${meta.iterations} iterations · ${meta.tool_calls} tool calls`
+     ? `agentic · ${meta.iterations} iterations · ${nTools} tool calls`
      : "single-call";
 
   let html = `<div class="card">
