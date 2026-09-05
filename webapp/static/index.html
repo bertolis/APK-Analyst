@@ -51,7 +51,8 @@
   .err{color:var(--crit);white-space:pre-wrap}
   /* live activity console */
   .console{margin:14px 0 0;background:#0b0d12;border:1px solid var(--line);border-radius:10px;
-    padding:12px 14px;max-height:230px;overflow-y:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    padding:12px 14px;min-height:200px;max-height:460px;overflow-y:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
     font-size:12px;line-height:1.7;color:#c7cede;scroll-behavior:smooth}
   .console:empty{display:none}
   .console .ln{white-space:pre-wrap;word-break:break-word}
@@ -80,6 +81,10 @@
   button.pdf{border:1px solid var(--line);background:var(--panel2);color:var(--fg);
     border-radius:9px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
   button.pdf:hover{border-color:var(--accent)}
+  button.stop{border:1px solid var(--line);background:var(--panel2);color:var(--high);
+    border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+  button.stop:hover{border-color:var(--high)}
+  button.stop:disabled{opacity:.5;cursor:default}
   /* severity accents */
   .s-critical{border-left-color:var(--crit)} .b-critical{background:var(--crit)}
   .s-high{border-left-color:var(--high)}     .b-high{background:var(--high)}
@@ -144,7 +149,10 @@
 
   <!-- PROGRESS -->
   <section class="card" id="progress" hidden>
-    <div class="stage" id="stageText">Queued…</div>
+    <div class="rphead">
+      <div class="stage" id="stageText">Queued…</div>
+      <button class="stop no-print" id="stop">■ Stop scan</button>
+    </div>
     <div class="bar"><i id="fill"></i></div>
     <div class="steps" id="steps"></div>
     <div class="hint" id="progDetail"></div>
@@ -162,8 +170,9 @@
 const $ = s => document.querySelector(s);
 const STAGES = ["decompiling","analyzing","finalizing","done"];
 const STAGE_LABEL = {queued:"Queued…",decompiling:"Decompiling the APK…",
-  analyzing:"Agent investigating…",finalizing:"Writing the report…",done:"Done"};
-let mode = "agent", file = null, poll = null;
+  analyzing:"Agent investigating…",finalizing:"Writing the report…",done:"Done",
+  cancelled:"Scan stopped"};
+let mode = "agent", file = null, poll = null, currentJob = null;
 
 // mode toggle
 document.querySelectorAll(".mode").forEach(m => m.onclick = () => {
@@ -202,12 +211,23 @@ $("#go").onclick = async () => {
     const r = await fetch("/api/scan", {method:"POST", body:fd});
     if(!r.ok){ throw new Error((await r.json()).detail || r.statusText); }
     const {job_id} = await r.json();
-    poll = setInterval(() => checkStatus(job_id), 1800);
+    currentJob = job_id;
+    $("#stop").disabled = false; $("#stop").textContent = "■ Stop scan";
+    poll = setInterval(() => checkStatus(job_id), 1000);
     checkStatus(job_id);
   }catch(e){
     $("#runErr").textContent = "Could not start scan: " + e.message;
     $("#go").disabled = false;
   }
+};
+
+// stop scan
+$("#stop").onclick = async () => {
+  if(!currentJob) return;
+  $("#stop").disabled = true; $("#stop").textContent = "Stopping…";
+  $("#stageText").textContent = "Stopping…";
+  try{ await fetch("/api/cancel/"+currentJob, {method:"POST"}); }
+  catch(e){ $("#stop").disabled = false; $("#stop").textContent = "■ Stop scan"; }
 };
 
 async function checkStatus(id){
@@ -225,8 +245,13 @@ async function checkStatus(id){
   }
   if(s.done){
     clearInterval(poll);
+    $("#stop").disabled = true;
     if(s.stage === "error"){
       $("#runErr").textContent = "Scan failed — " + (s.error||"unknown error");
+      $("#go").disabled = false; return;
+    }
+    if(s.stage === "cancelled"){
+      $("#progDetail").textContent = "Scan stopped — no report was generated.";
       $("#go").disabled = false; return;
     }
     setFill(100); $("#progDetail").textContent = "";

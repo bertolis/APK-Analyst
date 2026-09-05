@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from apk_analyst.ai.analyst import analyze_with_ai, report_to_dict
+from apk_analyst.errors import ScanCancelled
 from apk_analyst.pipeline import analyze
 
 HERE = Path(__file__).resolve().parent
@@ -56,13 +57,14 @@ app = FastAPI(title="APKAnalyst")
 class Job:
     id: str
     mode: str                       # "agent" | "ai"
-    stage: str = "queued"           # queued|decompiling|analyzing|finalizing|done|error
+    stage: str = "queued"           # queued|decompiling|analyzing|finalizing|done|error|cancelled
     iteration: int = 0
     max_iterations: int = 0
     tool_calls: int = 0
     error: Optional[str] = None
     report: Optional[dict] = None   # report_to_dict payload once done
     app_name: Optional[str] = None
+    cancel: bool = False            # set by /api/cancel; polled by the scan
     log: list[str] = field(default_factory=list)  # streamed activity lines
     _t0: float = field(default_factory=time.monotonic)
 
@@ -82,7 +84,8 @@ class Job:
             "id": self.id, "mode": self.mode, "stage": self.stage,
             "iteration": self.iteration, "max_iterations": self.max_iterations,
             "tool_calls": self.tool_calls, "error": self.error,
-            "app_name": self.app_name, "done": self.stage in ("done", "error"),
+            "app_name": self.app_name,
+            "done": self.stage in ("done", "error", "cancelled"),
             "log": list(self.log),
         }
 
@@ -100,20 +103,26 @@ def _run_scan(job: Job, apk_path: Path, api_key: Optional[str]) -> None:
 
         job.stage = "decompiling"
         job.add_log(f"Unpacking {apk_path.name}…")
+        _cancelled = lambda: job.cancel
         summary = analyze(str(apk_path), workspace=str(apk_path.parent / "workspace"),
-                          on_step=job.add_log)
+                          on_step=job.add_log, should_cancel=_cancelled)
         job.app_name = summary["apk"]["name"]
 
         job.stage = "analyzing"
         if job.mode == "ai":
-            job.add_log("Single-call analysis: one structured pass over the extracted facts…")
+            job.add_log("Single-call mode: sending the extracted facts to the model "
+                        "for one structured pass…")
+            job.add_log("Waiting for the model's analysis (no tool exploration in this "
+                        "mode — this can take ~15-30s)…")
             report = analyze_with_ai(summary, client=client)
+            job.add_log("Model responded — parsing structured findings…")
             payload = report_to_dict(report)
             payload["_meta"] = {"mode": "single-call"}
         else:
             from apk_analyst.ai.agent import analyze_agentic
 
-            job.add_log("Agent starting investigation (tool-driven loop)…")
+            job.add_log("Agent starting investigation — planning first moves "
+                        "(each iteration streams below as it runs)…")
 
             def _progress(i: int, mx: int, tools: list[str]) -> None:
                 job.iteration, job.max_iterations = i, mx
@@ -123,7 +132,7 @@ def _run_scan(job: Job, apk_path: Path, api_key: Optional[str]) -> None:
 
             # Unattended: on_expensive_retry left as default (auto-retries once).
             result = analyze_agentic(summary, client=client, verbose=False,
-                                     on_progress=_progress)
+                                     on_progress=_progress, should_cancel=_cancelled)
             job.stage = "finalizing"
             job.add_log(f"Investigation done ({result.iterations} iterations, "
                         f"{len(result.tool_calls)} tool calls) — writing the report…")
@@ -134,6 +143,9 @@ def _run_scan(job: Job, apk_path: Path, api_key: Optional[str]) -> None:
         job.add_log(f"Report ready: {len(payload.get('findings', []))} finding(s).")
         job.report = payload
         job.stage = "done"
+    except ScanCancelled:
+        job.add_log("Scan stopped by user.")
+        job.stage = "cancelled"
     except anthropic.AuthenticationError:
         job.error = "Anthropic rejected the API key. Check the key and try again."
         job.stage = "error"
@@ -188,6 +200,19 @@ async def status(job_id: str) -> JSONResponse:
     if job is None:
         raise HTTPException(404, "unknown job")
     return JSONResponse(job.public())
+
+
+@app.post("/api/cancel/{job_id}")
+async def cancel(job_id: str) -> JSONResponse:
+    """Request cancellation. The worker stops at its next checkpoint (between
+    decompile stages / agent iterations), so 'cancelling' may lag a few seconds."""
+    job = _JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(404, "unknown job")
+    if job.stage not in ("done", "error", "cancelled"):
+        job.cancel = True
+        job.add_log("Stop requested — finishing the current step…")
+    return JSONResponse({"ok": True, "stage": job.stage})
 
 
 @app.get("/api/report/{job_id}")

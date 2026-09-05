@@ -17,6 +17,7 @@ from typing import Callable, Optional
 
 from androguard import util as _ag_util
 
+from .errors import ScanCancelled
 from .manifest import extract_manifest
 from .decompile import run_jadx, run_apktool
 from .natives import inventory_natives
@@ -26,11 +27,18 @@ _ag_util.set_log("ERROR")  # silence androguard's verbose loguru output
 
 
 def analyze(apk_path: str, workspace: str = "workspace",
-            on_step: Optional[Callable[[str], None]] = None) -> dict:
+            on_step: Optional[Callable[[str], None]] = None,
+            should_cancel: Optional[Callable[[], bool]] = None) -> dict:
     """`on_step`, if given, is called with a short human-readable line before
     each extraction sub-stage so a UI can stream progress (unpacking, decompiling
-    …). It must never raise into the pipeline."""
+    …). It must never raise into the pipeline.
+
+    `should_cancel`, if given, is polled between sub-stages; when it returns True
+    the pipeline raises ScanCancelled (a running jadx/apktool subprocess still
+    finishes, but no further stage starts)."""
     def step(msg: str) -> None:
+        if should_cancel is not None and should_cancel():
+            raise ScanCancelled()
         if on_step is not None:
             try:
                 on_step(msg)

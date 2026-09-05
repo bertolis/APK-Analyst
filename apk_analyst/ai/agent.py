@@ -15,6 +15,7 @@ from typing import Callable, List, Optional
 
 import anthropic
 
+from ..errors import ScanCancelled
 from .analyst import MODEL, SYSTEM_PROMPT, load_client
 from .caching import cache_system, cache_tools, mark_rolling_cache, usage_delta
 from .citations import validate_report
@@ -26,6 +27,8 @@ MAX_ITERATIONS = 16   # safety cap so the loop always terminates
 
 # Optional UI hook: on_progress(iteration, max_iterations, last_tool_names).
 ProgressCb = Optional[Callable[[int, int, List[str]], None]]
+# Optional cancel hook: returns True when the user has asked to stop.
+CancelCb = Optional[Callable[[], bool]]
 
 AGENT_SYSTEM = SYSTEM_PROMPT + """
 
@@ -87,10 +90,15 @@ def _seed_context(summary: dict) -> str:
 def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
                     max_iterations: int = MAX_ITERATIONS, verbose: bool = True,
                     on_expensive_retry: ConfirmRetry = None,
-                    on_progress: "ProgressCb" = None) -> AgentResult:
+                    on_progress: "ProgressCb" = None,
+                    should_cancel: "CancelCb" = None) -> AgentResult:
     """`on_progress`, if given, is called once per iteration as
     on_progress(iteration, max_iterations, last_tool_names) so a UI can show
-    live progress. It must not raise."""
+    live progress. It must not raise.
+
+    `should_cancel`, if given, is polled at the start of each iteration; when it
+    returns True the loop raises ScanCancelled so a user Stop takes effect within
+    one iteration (before paying for the next model call)."""
     client = client or load_client()
     tools = Toolbox(summary["workspace"])
 
@@ -105,6 +113,8 @@ def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
     cache_read = cache_write = 0
 
     while iterations < max_iterations:
+        if should_cancel is not None and should_cancel():
+            raise ScanCancelled()
         iterations += 1
         mark_rolling_cache(messages)
         resp = client.messages.create(
