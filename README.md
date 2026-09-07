@@ -61,7 +61,8 @@ mapped to the OWASP Mobile Top 10):
 python3 run.py sample-app/SecureVault.apk --agent
 ```
 
-See [`sample-app/README.md`](sample-app/README.md) for the vulnerability table.
+See [`sample-app/README.md`](sample-app/README.md) for the vulnerability table,
+or skip straight to a [sample agentic report](docs/SecureVault_Report.pdf) (PDF).
 
 ---
 

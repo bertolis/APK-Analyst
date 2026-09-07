@@ -36,6 +36,13 @@ python3 run.py sample-app/SecureVault.apk --agent      # full agentic scan
 
 *A good scan should surface most of these plus incidental secondary issues.*
 
+## Sample report
+
+See what APKAnalyst actually produces on this app:
+**[SecureVault_Report.pdf](../docs/SecureVault_Report.pdf)** — a full agentic scan
+(21 findings; all 11 planted vulns caught, plus secondary issues), each finding
+with evidence, exploit path, remediation, and MASVS/course citations.
+
 ## App details
 
 - **Stack:** Java + Material UI, with a small JNI/C++ library.
