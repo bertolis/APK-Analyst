@@ -226,6 +226,16 @@ Reports are written to `workspace/<AppName>/`.
 
 ---
 
+## Acknowledgements
+
+Built on the work of others: [jadx](https://github.com/skylot/jadx) and
+[Apktool](https://apktool.org) for decompilation, [Voyage AI](https://voyageai.com)
+for embeddings, and [Anthropic Claude](https://www.anthropic.com) for the analysis.
+Findings are grounded in [OWASP MASVS](https://mas.owasp.org) and the OWASP Mobile
+Top 10. Thanks to their authors and maintainers.
+
+---
+
 ## License
 
 [PolyForm Noncommercial License 1.0.0](LICENSE.md) — free to view, use, and build
