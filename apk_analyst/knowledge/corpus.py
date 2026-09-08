@@ -151,6 +151,9 @@ def _course_chunks() -> list[Chunk]:
         chunks += _split_markdown(f.read_text(errors="replace"), "course", cat, ref=ref)
     if files:
         print(f"  playbook: {len(files)} .md file(s) at {base}")
+    else:
+        print(f"  i no .md notes in {base} - building MASVS-only. "
+              f"Add notes there, or point APK_ANALYST_PLAYBOOK_DIR at your notes.")
     return chunks
 
 
