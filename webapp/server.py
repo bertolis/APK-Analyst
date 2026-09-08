@@ -25,6 +25,7 @@ Design notes
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import threading
 import time
@@ -168,14 +169,46 @@ def _run_scan(job: Job, apk_path: Path, api_key: Optional[str]) -> None:
 
 # --- endpoints ----------------------------------------------------------------
 
+def _grounding_warning() -> Optional[str]:
+    """If agentic RAG grounding can't actually run, explain why (else None).
+
+    Agentic scans call `search_knowledge`, which needs both a built index and a
+    Voyage key to embed the query. When either is missing the tool quietly no-ops
+    and the report is produced *without* real retrieval — so we warn before the
+    (paid) model calls start, letting the caller decide whether to continue."""
+    try:
+        from apk_analyst.knowledge.store import KnowledgeBase
+        has_index = KnowledgeBase.exists()
+    except Exception:
+        has_index = False
+    has_voyage = bool(os.getenv("VOYAGE_API_KEY"))
+    if not has_index:
+        return ("No knowledge-base index found, so findings won't be grounded in "
+                "OWASP MASVS / methodology (build it once with `--build-kb`).")
+    if not has_voyage:
+        return ("No VOYAGE_API_KEY set, so search_knowledge can't embed queries — "
+                "the scan runs but findings won't be grounded in the knowledge base.")
+    return None
+
+
 @app.post("/api/scan")
 async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
-               api_key: str = Form(""), verbose: str = Form("")) -> JSONResponse:
+               api_key: str = Form(""), verbose: str = Form(""),
+               ack: str = Form("")) -> JSONResponse:
     if mode not in ("agent", "ai"):
         raise HTTPException(400, "mode must be 'agent' or 'ai'")
     name = (apk.filename or "").strip()
     if not name.lower().endswith(".apk"):
         raise HTTPException(400, "please upload a .apk file")
+
+    # Pre-charge grounding check: warn (once) before any paid model call so the
+    # caller can decide to continue ungrounded or fix the KB first.
+    acked = ack.lower() in ("1", "true", "on", "yes")
+    if mode == "agent" and not acked:
+        warn = _grounding_warning()
+        if warn:
+            return JSONResponse(status_code=409,
+                                content={"needs_ack": True, "warning": warn})
 
     job_id = uuid.uuid4().hex[:12]
     work = JOBS_DIR / job_id

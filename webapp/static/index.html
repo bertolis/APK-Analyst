@@ -112,6 +112,28 @@
     .cite{background:#f0f2f7;color:#333;border-color:#ccc}
     .sev,.pill{-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#111!important}
   }
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(8,10,14,.66);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;
+    opacity:0;animation:mfade .16s ease forwards}
+  @keyframes mfade{to{opacity:1}}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    max-width:440px;width:100%;padding:22px 22px 18px;box-shadow:0 18px 50px rgba(0,0,0,.5);
+    transform:translateY(6px) scale(.99);animation:mpop .18s ease forwards}
+  @keyframes mpop{to{transform:none}}
+  .modal .mh{display:flex;align-items:center;gap:11px;margin-bottom:10px}
+  .modal .mh .ic{flex:0 0 34px;width:34px;height:34px;border-radius:9px;display:flex;
+    align-items:center;justify-content:center;font-size:18px;
+    background:rgba(242,193,78,.14);color:var(--med)}
+  .modal h3{margin:0;font-size:16px;color:var(--fg)}
+  .modal p{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.55}
+  .modal .mact{display:flex;gap:10px;justify-content:flex-end}
+  .modal button{padding:10px 16px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;
+    border:1px solid var(--line)}
+  .modal .cancel{background:var(--panel2);color:var(--fg)}
+  .modal .cancel:hover{border-color:var(--muted)}
+  .modal .confirm{background:var(--med);color:#1a1400;border-color:var(--med)}
+  .modal .confirm:hover{filter:brightness(1.07)}
 </style>
 </head>
 <body>
@@ -209,20 +231,66 @@ function setFile(f){
   $("#go").disabled = false;
 }
 
+// styled confirm dialog -> resolves true (confirm) / false (cancel)
+function confirmModal({title, body, confirm, cancel}){
+  return new Promise(resolve => {
+    const bg = document.createElement("div");
+    bg.className = "modal-bg";
+    bg.innerHTML = `<div class="modal" role="dialog" aria-modal="true">
+      <div class="mh"><div class="ic">⚠</div><h3></h3></div>
+      <p></p>
+      <div class="mact">
+        <button class="cancel"></button>
+        <button class="confirm"></button>
+      </div></div>`;
+    bg.querySelector("h3").textContent = title;
+    bg.querySelector("p").textContent = body;
+    bg.querySelector(".cancel").textContent = cancel || "Cancel";
+    bg.querySelector(".confirm").textContent = confirm || "Continue";
+    const close = v => { bg.remove(); document.removeEventListener("keydown", onKey); resolve(v); };
+    const onKey = e => { if(e.key === "Escape") close(false); };
+    bg.querySelector(".cancel").onclick = () => close(false);
+    bg.querySelector(".confirm").onclick = () => close(true);
+    bg.onclick = e => { if(e.target === bg) close(false); };   // click backdrop = cancel
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(bg);
+    bg.querySelector(".confirm").focus();
+  });
+}
+
 // start
-$("#go").onclick = async () => {
-  if(!file) return;
-  $("#go").disabled = true; $("#formErr").textContent = "";
+async function startScan(ack){
   const fd = new FormData();
   fd.append("apk", file); fd.append("mode", mode); fd.append("api_key", $("#key").value);
   fd.append("verbose", $("#verbose").checked ? "1" : "");
+  if(ack) fd.append("ack", "1");
+  const r = await fetch("/api/scan", {method:"POST", body:fd});
+  // 409 = grounding won't work; confirm before any paid model call, then retry.
+  if(r.status === 409){
+    const {warning} = await r.json();
+    const ok = await confirmModal({
+      title: "Grounding unavailable",
+      body: warning + "\n\nContinuing starts the paid scan — findings just won't cite the knowledge base.",
+      confirm: "Continue anyway",
+      cancel: "Cancel",
+    });
+    return ok ? startScan(true) : null;   // declined -> nothing charged
+  }
+  if(!r.ok){ throw new Error((await r.json()).detail || r.statusText); }
+  return (await r.json()).job_id;
+}
+
+$("#go").onclick = async () => {
+  if(!file) return;
+  $("#go").disabled = true; $("#formErr").textContent = "";
   $("#report").hidden = true; $("#progress").hidden = false; $("#runErr").textContent = "";
   $("#console").innerHTML = ""; _logLen = 0;
   renderSteps("queued"); setFill(4);
   try{
-    const r = await fetch("/api/scan", {method:"POST", body:fd});
-    if(!r.ok){ throw new Error((await r.json()).detail || r.statusText); }
-    const {job_id} = await r.json();
+    const job_id = await startScan(false);
+    if(!job_id){                       // declined at the warning
+      $("#progress").hidden = true; $("#go").disabled = false; return;
+    }
     currentJob = job_id;
     $("#stop").disabled = false; $("#stop").textContent = "■ Stop scan";
     poll = setInterval(() => checkStatus(job_id), 1000);

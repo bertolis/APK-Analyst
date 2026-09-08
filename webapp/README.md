@@ -21,6 +21,13 @@ Then open <http://127.0.0.1:8077>.
   (bring-your-own-key). Leave it blank locally to fall back to the server's
   `.env` key. The key is used only to build that scan's client — it is never
   stored, logged, or written to disk.
+- **Grounding key (Voyage)** — read from the server's `.env` only (no web
+  field). If it's missing (or the index isn't built), an agentic scan pops a
+  warning *before* any paid model call: continue ungrounded, or cancel.
+
+> **Restart after editing `.env`.** Keys and directory settings are read once at
+> startup, so a running server won't see changes to `.env` — restart it (Ctrl+C
+> and relaunch) after adding or changing a key.
 
 The engine needs `jadx`, `apktool`, and `strings` on the server's PATH, and the
 RAG index built once (`python3 run.py --build-kb`) for grounding/citations. The
