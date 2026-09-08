@@ -40,28 +40,6 @@ def playbook_dir() -> Path:
     return Path(raw).expanduser() if raw else _DEFAULT_PLAYBOOK
 
 
-@dataclass
-class CourseSource:
-    tag: str            # short citation tag, e.g. "Static" -> ref "Course:Static"
-    subdir: str         # section folder under the playbook dir
-    files: list[str] | None = None   # explicit filenames; None = all M*/*.md via matcher
-    pattern: str = "*.md"
-
-
-# A recognised section layout (the author's own notes use this). If the playbook
-# dir happens to contain these subfolders they are cited precisely; any other
-# folder of notes falls back to a generic glob (see _generic_chunks).
-COURSE_SOURCES = [
-    CourseSource("Static", "Android_Application_Static_Analysis"),
-    CourseSource("Malware", "Android_Application_Malware_Analysis"),
-    CourseSource("OWASP", "OWASP", pattern="M*_*.md"),   # keeps per-M citation below
-    CourseSource("MobSF", "Android_Penetration_Testing_Automation", files=["MobSF.md"]),
-    CourseSource("Quark", "Android_Penetration_Testing_Automation", files=["Quark.md"]),
-]
-
-# Non-content files to skip when globbing a section.
-_SKIP_FILES = {"internal_notes.md"}
-
 # OWASP MASVS category intros (raw GitHub). Fetched once, then cached in data/.
 # These give broad per-category context; the control files below add the depth.
 MASVS_BASE = "https://raw.githubusercontent.com/OWASP/masvs/master/Document/"
@@ -153,21 +131,12 @@ def _cap_words(body: str) -> list[str]:
     return out
 
 
-def _files_for(src: CourseSource, base: Path) -> list[Path]:
-    d = base / src.subdir
-    if not d.is_dir():
-        return []
-    if src.files:
-        return [d / n for n in src.files if (d / n).is_file()]
-    return [f for f in sorted(d.glob(src.pattern)) if f.name not in _SKIP_FILES]
-
-
 def _course_chunks() -> list[Chunk]:
-    """Chunk the playbook notes, if any.
+    """Chunk every `.md` note under the playbook dir (any folder structure).
 
-    Absent playbook dir  -> [] (build proceeds MASVS-only).
-    Recognised layout    -> precise per-section citations (author's notes).
-    Any other .md folder -> generic glob cited by relative path.
+    Absent playbook dir -> [] (build proceeds MASVS-only). Otherwise each file
+    is cited by a generic rule (see _cite_for), so a user just drops their own
+    methodology notes in without matching any prescribed layout.
     """
     base = playbook_dir()
     if not base.is_dir():
@@ -175,41 +144,27 @@ def _course_chunks() -> list[Chunk]:
               f"Point APK_ANALYST_PLAYBOOK_DIR at your notes, or add .md files there.")
         return []
 
-    chunks: list[Chunk] = []
-    for src in COURSE_SOURCES:
-        for f in _files_for(src, base):
-            # OWASP files carry a per-category id (M1..M10); others cite by section tag.
-            m = re.match(r"(M\d+)_(.*)\.md", f.name)
-            if src.tag == "OWASP" and m:
-                ref = f"Course:{m.group(1)}"
-                cat = f"{m.group(1)} {m.group(2).replace('_', ' ')}"
-            else:
-                ref = f"Course:{src.tag}"
-                cat = f"{src.tag}: {f.stem.replace('_', ' ')}"
-            chunks += _split_markdown(f.read_text(errors="replace"), "course", cat, ref=ref)
-
-    if not chunks:  # folder exists but not in the recognised layout -> take any .md
-        chunks = _generic_chunks(base)
-    return chunks
-
-
-def _generic_chunks(base: Path) -> list[Chunk]:
-    """Embed any `.md` under the playbook dir, cited by its relative path.
-
-    This is the path a fresh clone takes: a user drops their own methodology
-    notes into `playbook/` (any structure) and they are grounded without having
-    to match the author's section-folder names."""
-    files = [f for f in sorted(base.rglob("*.md"))
-             if f.name not in _SKIP_FILES and f.name.lower() != "readme.md"]
+    files = [f for f in sorted(base.rglob("*.md")) if f.name.lower() != "readme.md"]
     chunks: list[Chunk] = []
     for f in files:
-        tag = "/".join(f.relative_to(base).with_suffix("").parts)   # e.g. "crypto/aes-misuse"
-        ref = f"Course:{tag}"
-        cat = tag.replace("_", " ")
+        ref, cat = _cite_for(f, base)
         chunks += _split_markdown(f.read_text(errors="replace"), "course", cat, ref=ref)
     if files:
-        print(f"  playbook: {len(files)} .md file(s) via generic glob at {base}")
+        print(f"  playbook: {len(files)} .md file(s) at {base}")
     return chunks
+
+
+def _cite_for(f: Path, base: Path) -> tuple[str, str]:
+    """Derive (ref, category) for a playbook file from its name/path alone.
+
+    A file named `M<n>_Title.md` (any folder) gets the tidy id label
+    `Course:M<n>`; every other file is cited by its path relative to the
+    playbook dir. No prescribed folder names — just conventions on the names."""
+    m = re.match(r"(M\d+)_(.*)\.md$", f.name)
+    if m:
+        return f"Course:{m.group(1)}", f"{m.group(1)} {m.group(2).replace('_', ' ')}"
+    rel = "/".join(f.relative_to(base).with_suffix("").parts)   # e.g. "crypto/aes-misuse"
+    return f"Course:{rel}", rel.replace("_", " ")
 
 
 def _fetch_cached(url: str, cache: Path) -> str | None:

@@ -23,6 +23,10 @@ Every `.md` here (except this `README.md`) is embedded and becomes searchable by
 the agent's `search_knowledge` tool. Each file is cited by its path relative to
 this folder, e.g. `playbook/crypto/aes-misuse.md` → cited as `Course:crypto/aes-misuse`.
 
+**Tidy label shortcut:** a file named `M<n>_Title.md` (any folder) is cited as
+`Course:M<n>` — handy if you organise notes by OWASP Mobile Top 10 category
+(e.g. `M10_Insufficient_Cryptography.md` → `Course:M10`).
+
 ## Where the notes live (configurable)
 
 By default the build reads this repo-local `playbook/` directory. To keep your
@@ -34,13 +38,6 @@ APK_ANALYST_PLAYBOOK_DIR=~/path/to/your/notes
 ```
 
 `~` is expanded; an absolute path works too. When set, this folder is ignored.
-
-## Recognised layout (optional)
-
-If your notes happen to use the original section-folder layout
-(`Android_Application_Static_Analysis/`, `OWASP/M*_*.md`, etc.), they are cited
-with precise per-section labels. **You don't need to match it** — any other
-folder of `.md` files is picked up by a generic glob and cited by relative path.
 
 ## No playbook? That's fine
 
