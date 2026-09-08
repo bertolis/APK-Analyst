@@ -1,8 +1,8 @@
 """Gather and chunk the knowledge sources into embeddable pieces.
 
 Two sources, both authoritative for *this* tool's methodology:
-  1. Course notes  — the author's OWASP Mobile Top 10 write-ups (M1-M10), local.
-     Rich with real exploit walkthroughs; tagged source="course".
+  1. Playbook notes — your own static-analysis methodology write-ups, read from a
+     user-configurable folder (see playbook_dir()); tagged source="course".
   2. OWASP MASVS  — the official Mobile App Security Verification Standard
      controls (STORAGE/CRYPTO/AUTH/NETWORK/PLATFORM/CODE/RESILIENCE/PRIVACY),
      fetched from GitHub once and cached locally; tagged source="masvs".
@@ -12,25 +12,45 @@ query retrieves a focused control/subtopic rather than a whole document.
 """
 from __future__ import annotations
 
+import os
 import re
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Local course notes — the PLAYBOOK (how to find/confirm issues). Static-analysis
-# relevant sections only; MASVS below is the separate rulebook (what to cite).
-_SECTIONS = Path.home() / "notes/mobile-security"
+from dotenv import load_dotenv
+
+# Load .env so APK_ANALYST_PLAYBOOK_DIR (and friends) are visible here too.
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+# The PLAYBOOK source — your own static-analysis methodology notes (how to find/
+# confirm issues). MASVS below is the separate rulebook (what to cite).
+#
+# Location is fully user-configurable and defaults to a repo-local `playbook/`
+# folder, so nothing points at any one machine's private paths:
+#   • set APK_ANALYST_PLAYBOOK_DIR to any folder of Markdown notes (~ is expanded), or
+#   • drop `.md` files into the repo's `playbook/` directory.
+# If the folder is absent the build simply proceeds MASVS-only (see _course_chunks).
+_DEFAULT_PLAYBOOK = Path(__file__).resolve().parents[2] / "playbook"
+
+
+def playbook_dir() -> Path:
+    """Resolve the playbook directory from the env var, else the repo default."""
+    raw = os.getenv("APK_ANALYST_PLAYBOOK_DIR")
+    return Path(raw).expanduser() if raw else _DEFAULT_PLAYBOOK
 
 
 @dataclass
 class CourseSource:
     tag: str            # short citation tag, e.g. "Static" -> ref "Course:Static"
-    subdir: str         # section folder under _SECTIONS
+    subdir: str         # section folder under the playbook dir
     files: list[str] | None = None   # explicit filenames; None = all M*/*.md via matcher
     pattern: str = "*.md"
 
 
-# Which course sections feed the playbook, and how each is cited.
+# A recognised section layout (the author's own notes use this). If the playbook
+# dir happens to contain these subfolders they are cited precisely; any other
+# folder of notes falls back to a generic glob (see _generic_chunks).
 COURSE_SOURCES = [
     CourseSource("Static", "Android_Application_Static_Analysis"),
     CourseSource("Malware", "Android_Application_Malware_Analysis"),
@@ -133,10 +153,9 @@ def _cap_words(body: str) -> list[str]:
     return out
 
 
-def _files_for(src: CourseSource) -> list[Path]:
-    d = _SECTIONS / src.subdir
+def _files_for(src: CourseSource, base: Path) -> list[Path]:
+    d = base / src.subdir
     if not d.is_dir():
-        print(f"  ! course section not found: {src.subdir}")
         return []
     if src.files:
         return [d / n for n in src.files if (d / n).is_file()]
@@ -144,9 +163,21 @@ def _files_for(src: CourseSource) -> list[Path]:
 
 
 def _course_chunks() -> list[Chunk]:
+    """Chunk the playbook notes, if any.
+
+    Absent playbook dir  -> [] (build proceeds MASVS-only).
+    Recognised layout    -> precise per-section citations (author's notes).
+    Any other .md folder -> generic glob cited by relative path.
+    """
+    base = playbook_dir()
+    if not base.is_dir():
+        print(f"  i no playbook dir at {base} - building MASVS-only. "
+              f"Point APK_ANALYST_PLAYBOOK_DIR at your notes, or add .md files there.")
+        return []
+
     chunks: list[Chunk] = []
     for src in COURSE_SOURCES:
-        for f in _files_for(src):
+        for f in _files_for(src, base):
             # OWASP files carry a per-category id (M1..M10); others cite by section tag.
             m = re.match(r"(M\d+)_(.*)\.md", f.name)
             if src.tag == "OWASP" and m:
@@ -156,6 +187,28 @@ def _course_chunks() -> list[Chunk]:
                 ref = f"Course:{src.tag}"
                 cat = f"{src.tag}: {f.stem.replace('_', ' ')}"
             chunks += _split_markdown(f.read_text(errors="replace"), "course", cat, ref=ref)
+
+    if not chunks:  # folder exists but not in the recognised layout -> take any .md
+        chunks = _generic_chunks(base)
+    return chunks
+
+
+def _generic_chunks(base: Path) -> list[Chunk]:
+    """Embed any `.md` under the playbook dir, cited by its relative path.
+
+    This is the path a fresh clone takes: a user drops their own methodology
+    notes into `playbook/` (any structure) and they are grounded without having
+    to match the author's section-folder names."""
+    files = [f for f in sorted(base.rglob("*.md"))
+             if f.name not in _SKIP_FILES and f.name.lower() != "readme.md"]
+    chunks: list[Chunk] = []
+    for f in files:
+        tag = "/".join(f.relative_to(base).with_suffix("").parts)   # e.g. "crypto/aes-misuse"
+        ref = f"Course:{tag}"
+        cat = tag.replace("_", " ")
+        chunks += _split_markdown(f.read_text(errors="replace"), "course", cat, ref=ref)
+    if files:
+        print(f"  playbook: {len(files)} .md file(s) via generic glob at {base}")
     return chunks
 
 

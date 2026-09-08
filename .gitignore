@@ -13,6 +13,11 @@ APKs/
 # generated RAG index + fetched MASVS cache (rebuild with --build-kb)
 apk_analyst/data/
 
+# playbook notes are personal/copyrighted — ship only the folder + its README,
+# never a user's own methodology notes (keep this in sync with the README there)
+playbook/*
+!playbook/README.md
+
 # eval run outputs (agent reports/scorecards derived from copyrighted challenge apps)
 eval/results/
 

@@ -178,9 +178,24 @@ Build the knowledge index once:
 python3 run.py --build-kb
 ```
 
-> The knowledge index and any fetched standards are git-ignored — rebuild them
-> locally with the command above. The playbook is sourced from local
-> methodology notes that are not distributed with the repo.
+**About the knowledge base.** The built index and fetched standards are
+git-ignored, so a fresh clone rebuilds them locally with the command above. The
+two halves rebuild differently:
+
+- **Rulebook (OWASP MASVS)** — fetched automatically from OWASP's public repo.
+  Every clone gets this in full.
+- **Playbook (methodology notes)** — *your* static-analysis notes. The notes the
+  project was built with are personal/copyrighted and **not distributed**, so the
+  repo ships an empty [`playbook/`](playbook/) folder. Drop your own `.md` notes
+  there (any structure) and `--build-kb` embeds them, or point
+  `APK_ANALYST_PLAYBOOK_DIR` at a notes folder elsewhere. See
+  [`playbook/README.md`](playbook/README.md).
+
+With no playbook notes, `--build-kb` still succeeds and builds a **MASVS-only**
+index; the agent runs normally, findings just cite MASVS but no playbook. Two
+optional env vars (both with repo-local defaults) control the directories:
+`APK_ANALYST_PLAYBOOK_DIR` (where your notes live) and `APK_ANALYST_DATA_DIR`
+(where the index is stored) — see `.env.example`.
 
 ## Usage
 

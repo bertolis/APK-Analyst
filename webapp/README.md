@@ -23,7 +23,10 @@ Then open <http://127.0.0.1:8077>.
   stored, logged, or written to disk.
 
 The engine needs `jadx`, `apktool`, and `strings` on the server's PATH, and the
-RAG index built once (`python3 run.py --build-kb`) for grounding/citations.
+RAG index built once (`python3 run.py --build-kb`) for grounding/citations. The
+playbook half of that index comes from your own notes — see the repo root
+[`README.md`](../README.md) and [`playbook/README.md`](../playbook/README.md)
+for how to add them (a MASVS-only index works too if you skip them).
 
 ## How it fits together
 

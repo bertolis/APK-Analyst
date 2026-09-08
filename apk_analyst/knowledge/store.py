@@ -10,16 +10,24 @@ Index lives on disk as two files: embeddings.npy + chunks.json.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+from dotenv import load_dotenv
 
 from .corpus import Chunk
 from .embedder import Embedder
 
-# Default index location: apk_analyst/data/knowledge/
-DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "knowledge"
+# Where the embedded index + fetched MASVS cache live. Defaults to the repo-local
+# apk_analyst/data/, overridable with APK_ANALYST_DATA_DIR (~ is expanded) so a
+# user can keep their index anywhere (e.g. outside the repo). The knowledge index
+# sits in <data>/knowledge/; build.py caches MASVS under <data>/masvs_cache/.
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+_raw = os.getenv("APK_ANALYST_DATA_DIR")
+DATA_BASE = Path(_raw).expanduser() if _raw else Path(__file__).resolve().parents[1] / "data"
+DATA_DIR = DATA_BASE / "knowledge"
 _EMB = "embeddings.npy"
 _META = "chunks.json"
 

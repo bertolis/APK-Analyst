@@ -20,7 +20,12 @@ def build_index(out_dir: Path = DATA_DIR) -> KnowledgeBase:
     print("Building knowledge index...")
     chunks = gather_chunks(_CACHE)
     if not chunks:
-        raise RuntimeError("no knowledge chunks gathered (check course dir / network)")
+        raise RuntimeError(
+            "No knowledge chunks gathered. Both sources came up empty:\n"
+            "  - Playbook: no .md notes found (set APK_ANALYST_PLAYBOOK_DIR or "
+            "add files under playbook/).\n"
+            "  - MASVS: could not be fetched (check your network connection).\n"
+            "At least one is required to build an index.")
     print(f"  embedding {len(chunks)} chunk(s) with Voyage...")
     kb = KnowledgeBase.build(chunks, Embedder())
     kb.save(out_dir)
