@@ -299,8 +299,15 @@ async def index() -> FileResponse:
 
 
 @app.get("/metrics")
-async def metrics() -> JSONResponse:
-    """First-party usage counters (visits + scans by mode)."""
+async def metrics(token: str = "") -> JSONResponse:
+    """First-party usage counters (visits + scans by mode). Gated by a secret:
+    set METRICS_TOKEN in the environment and pass it as ?token=… . If no token
+    is configured, the endpoint is hidden (404)."""
+    import hmac
+    configured = os.getenv("METRICS_TOKEN", "")
+    supplied = token or ""
+    if not configured or not hmac.compare_digest(supplied, configured):
+        raise HTTPException(404, "not found")
     with _METRICS_LOCK:
         try:
             data = json.loads(METRICS_FILE.read_text()) if METRICS_FILE.exists() else {}
