@@ -1,0 +1,4 @@
+# Allow-list of destination hosts (extended regex, host-only match).
+# Only these are reachable; everything else is denied by FilterDefaultDeny.
+^api\.anthropic\.com$
+^api\.voyageai\.com$

@@ -1,0 +1,59 @@
+# Hardened deployment: the app has NO direct internet access. It sits on an
+# `internal` Docker network and can only reach the `egress-proxy`, which is an
+# allow-list forward proxy permitting HTTPS only to the Anthropic and Voyage
+# API hosts. So even if a malicious APK exploited jadx/apktool/androguard, the
+# compromised process cannot phone home or pull second-stage payloads.
+#
+# Usage:
+#   cd deploy
+#   DOCKER_BUILDKIT=1 docker build --secret id=voyage,env=VOYAGE_API_KEY \
+#       -t apkanalyst ..           # build the app image (bakes the RAG index)
+#   METRICS_TOKEN=... docker compose up -d --build
+#
+# The app reaches the APIs via HTTPS_PROXY; decompiling itself needs no network.
+
+services:
+  egress-proxy:
+    build: ./proxy
+    networks:
+      - noegress      # reachable by the app
+      - egress        # can reach the internet (allow-listed hosts only)
+    restart: unless-stopped
+
+  app:
+    image: apkanalyst
+    depends_on:
+      - egress-proxy
+    environment:
+      # Route all outbound HTTP(S) through the allow-list proxy.
+      HTTP_PROXY: "http://egress-proxy:8888"
+      HTTPS_PROXY: "http://egress-proxy:8888"
+      NO_PROXY: "localhost,127.0.0.1"
+      METRICS_TOKEN: "${METRICS_TOKEN:-}"
+      SCAN_WORKERS: "${SCAN_WORKERS:-3}"
+    ports:
+      - "8077:8077"
+    networks:
+      - noegress      # ONLY this network -> no direct route to the internet
+    read_only: true
+    tmpfs:
+      - /app/webapp/_jobs:rw,size=1g,noexec,nosuid
+      - /tmp:rw,size=256m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 3g
+    cpus: 2.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+networks:
+  egress: {}
+  noegress:
+    internal: true    # no gateway to the outside world
