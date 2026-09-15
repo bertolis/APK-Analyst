@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -127,6 +127,41 @@ _LOCK = threading.Lock()
 # Job store is in-memory, so prune it to stop unbounded growth over uptime.
 JOB_TTL_SECONDS = 3600   # forget a finished job ~1h after it started
 MAX_JOBS = 200           # hard cap; drop oldest finished jobs beyond this
+
+
+# Per-IP rate limit on scan submissions — stops an abusive flood from burning
+# CPU/RAM, without constraining normal use (scans take minutes and run on the
+# user's own key). Sliding window, in-memory. Tune with the env vars.
+RATE_MAX = int(os.getenv("SCAN_RATE_MAX", "20"))        # scans per window per IP
+RATE_WINDOW = int(os.getenv("SCAN_RATE_WINDOW", "3600"))  # window in seconds
+_RATE: dict[str, list[float]] = {}
+_RATE_LOCK = threading.Lock()
+
+
+def _client_ip(request: Request) -> str:
+    """Client IP. Behind our own nginx, so trust the first X-Forwarded-For hop."""
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _rate_ok(ip: str) -> bool:
+    """True if this IP may start another scan; records the attempt when allowed."""
+    now = time.time()
+    with _RATE_LOCK:
+        hits = [t for t in _RATE.get(ip, []) if now - t < RATE_WINDOW]
+        if len(hits) >= RATE_MAX:
+            _RATE[ip] = hits
+            return False
+        hits.append(now)
+        _RATE[ip] = hits
+        # opportunistic cleanup of idle IPs so the map can't grow unbounded
+        if len(_RATE) > 10_000:
+            for k in [k for k, v in _RATE.items()
+                      if not any(now - t < RATE_WINDOW for t in v)]:
+                _RATE.pop(k, None)
+        return True
 
 
 # Bounded worker pool: scans wait in a queue instead of each spawning a thread,
@@ -280,7 +315,7 @@ def _grounding_warning(voyage_key: Optional[str] = None) -> Optional[str]:
 
 
 @app.post("/api/scan")
-async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
+async def scan(request: Request, apk: UploadFile = File(...), mode: str = Form("agent"),
                api_key: str = Form(""), voyage_key: str = Form(""),
                verbose: str = Form(""), ack: str = Form(""),
                terms: str = Form("")) -> JSONResponse:
@@ -304,6 +339,13 @@ async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
         if warn:
             return JSONResponse(status_code=409,
                                 content={"needs_ack": True, "warning": warn})
+
+    # Per-IP rate limit — counted only when the scan is actually about to run
+    # (after the grounding-warning round-trip, before the upload body is read),
+    # so a fumbled form or an ack re-submit doesn't burn quota.
+    if not _rate_ok(_client_ip(request)):
+        raise HTTPException(429, f"rate limit: max {RATE_MAX} scans per "
+                                 f"{RATE_WINDOW // 60} min — please try again later")
 
     job_id = uuid.uuid4().hex[:12]
     work = JOBS_DIR / job_id
