@@ -76,12 +76,12 @@ CMD ["python3", "-m", "uvicorn", "webapp.server:app", "--host", "0.0.0.0", "--po
 #     -p 8077:8077 \
 #     --log-opt max-size=10m --log-opt max-file=3 \
 #     --read-only \
-#     --tmpfs /app/webapp/_jobs:rw,size=1g,noexec,nosuid \
+#     --tmpfs /app/webapp/_jobs:rw,size=3g,noexec,nosuid \
 #     --tmpfs /tmp:rw,size=256m,noexec,nosuid \
 #     --cap-drop=ALL \
 #     --security-opt=no-new-privileges \
 #     --pids-limit=256 \
-#     --memory=3g --cpus=2 \
+#     --memory=5g --cpus=2 \   # >= _jobs tmpfs (3g) + scan process RAM
 #     -e ANTHROPIC_API_KEY -e VOYAGE_API_KEY -e METRICS_TOKEN \
 #     apkanalyst
 #

@@ -11,6 +11,7 @@ consume in Step 2. Output layout:
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict
 from pathlib import Path
 from typing import Callable, Optional
@@ -24,6 +25,30 @@ from .natives import inventory_natives
 from .framework import detect_framework
 
 _ag_util.set_log("ERROR")  # silence androguard's verbose loguru output
+
+# Per-scan disk cap: abort if decompiled output balloons past this, so one big
+# or malicious APK can't fill the shared scratch space and starve other workers.
+MAX_WORKSPACE_MB = int(os.getenv("APK_ANALYST_MAX_WORKSPACE_MB", "2048"))
+_MAX_WORKSPACE_BYTES = MAX_WORKSPACE_MB * 1024 * 1024
+
+
+def _dir_size(path: Path) -> int:
+    total = 0
+    for p in path.rglob("*"):
+        try:
+            if p.is_file():
+                total += p.stat().st_size
+        except OSError:
+            pass
+    return total
+
+
+def _guard_workspace_size(work: Path) -> None:
+    if _dir_size(work) > _MAX_WORKSPACE_BYTES:
+        raise RuntimeError(
+            f"decompiled output exceeded the {MAX_WORKSPACE_MB} MB limit — "
+            f"scan aborted (possible decompression bomb or oversized app)."
+        )
 
 
 def analyze(apk_path: str, workspace: str = "workspace",
@@ -60,8 +85,10 @@ def analyze(apk_path: str, workspace: str = "workspace",
     natives = inventory_natives(str(apk), on_note=on_step)
     step("Decompiling Java with jadx…")
     jadx = run_jadx(str(apk), str(work / "jadx"))
+    _guard_workspace_size(work)
     step("Unpacking smali + resources with apktool…")
     apktool = run_apktool(str(apk), str(work / "apktool"))
+    _guard_workspace_size(work)
     step("Extraction complete — handing off to the analyst.")
 
     summary = {

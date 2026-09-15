@@ -37,14 +37,16 @@ services:
       - noegress      # ONLY this network -> no direct route to the internet
     read_only: true
     tmpfs:
-      - /app/webapp/_jobs:rw,size=1g,noexec,nosuid
+      - /app/webapp/_jobs:rw,size=3g,noexec,nosuid
       - /tmp:rw,size=256m,noexec,nosuid
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
     pids_limit: 256
-    mem_limit: 3g
+    # tmpfs usage counts toward mem_limit, so this must exceed the _jobs tmpfs
+    # (3g) plus the scan processes' own RAM. Tune to the host.
+    mem_limit: 5g
     cpus: 2.0
     logging:
       driver: json-file
