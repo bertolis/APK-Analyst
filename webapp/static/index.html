@@ -166,7 +166,7 @@
   <section class="card" id="form">
     <div class="row">
       <div style="flex:1;min-width:220px">
-        <label>Anthropic API key</label>
+        <label>Anthropic API key <span style="color:var(--crit);font-weight:600">*required</span></label>
         <input id="key" type="password" placeholder="sk-ant-…"
                autocomplete="off">
         <div class="hint">Used only for this scan — never stored or logged.
@@ -176,7 +176,7 @@
         <label>Voyage API key <span style="color:var(--muted);font-weight:400">(optional)</span></label>
         <input id="voyage" type="password" placeholder="pa-…"
                autocomplete="off">
-        <div class="hint">Speeds up RAG grounding in agentic mode — skips the free-tier throttle.
+        <div class="hint">Enables RAG grounding (citations) in agentic mode — without it the scan still runs, ungrounded.
           <a href="https://dashboard.voyageai.com/" target="_blank" rel="noopener">Get a key</a></div>
       </div>
     </div>
@@ -282,8 +282,11 @@ function setFile(f){
   updateGo();
 }
 
-function updateGo(){ $("#go").disabled = !(file && $("#terms").checked); }
-document.addEventListener("DOMContentLoaded", () => { $("#terms").onchange = updateGo; });
+function updateGo(){ $("#go").disabled = !(file && $("#terms").checked && $("#key").value.trim()); }
+document.addEventListener("DOMContentLoaded", () => {
+  $("#terms").onchange = updateGo;
+  $("#key").oninput = updateGo;
+});
 
 // styled confirm dialog -> resolves true (confirm) / false (cancel)
 function confirmModal({title, body, confirm, cancel}){

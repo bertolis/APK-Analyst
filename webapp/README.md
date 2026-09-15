@@ -17,17 +17,15 @@ Then open <http://127.0.0.1:8077>.
 - **Scan mode** — *Full agentic* (the tool-driven agent + RAG grounding, best
   findings, a few minutes) or *Single-call* (one structured pass, faster and
   cheaper, fewer findings).
-- **API key** — paste an Anthropic key to run the scan on *your* key
-  (bring-your-own-key). Leave it blank locally to fall back to the server's
-  `.env` key. The key is used only to build that scan's client — it is never
-  stored, logged, or written to disk.
-- **Grounding key (Voyage)** — optional web field (bring-your-own), else read
-  from the server's `.env`. Used by `search_knowledge` in agentic mode to embed
-  the query for RAG grounding. If no key is available (and none in `.env`) or the
-  index isn't built, an agentic scan pops a warning *before* any paid model call:
-  continue ungrounded, or cancel. A caller-supplied key clears that warning.
-  Note: BYOK only *speeds up* grounding when the visitor's Voyage account is
-  card-backed — the 3 RPM / 10K TPM throttle is the free-tier-without-a-card rate.
+- **API key** — an Anthropic key is **required** (bring-your-own-key); there is
+  no server-key fallback. The key is used only to build that scan's client — it
+  is never stored, logged, or written to disk.
+- **Grounding key (Voyage)** — optional web field (bring-your-own); there is no
+  server-key fallback. Used by `search_knowledge` in agentic mode to embed the
+  query for RAG grounding. If no key is provided or the index isn't built, an
+  agentic scan pops a warning *before* any paid model call: continue ungrounded,
+  or cancel. Note: a card-less free Voyage account is throttled to 3 RPM / 10K
+  TPM; add a payment method to remove it.
 
 A user-facing documentation page is served at `/docs` (how it works, why it needs
 keys, how keys/data are handled, and the Voyage free-vs-paid throttle).

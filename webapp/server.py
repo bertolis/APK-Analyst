@@ -208,13 +208,14 @@ def _grounding_warning(voyage_key: Optional[str] = None) -> Optional[str]:
         has_index = KnowledgeBase.exists()
     except Exception:
         has_index = False
-    has_voyage = bool(voyage_key) or bool(os.getenv("VOYAGE_API_KEY"))
+    has_voyage = bool(voyage_key)   # BYOK only — no server-key fallback
     if not has_index:
         return ("No knowledge-base index found, so findings won't be grounded in "
                 "OWASP MASVS / methodology (build it once with `--build-kb`).")
     if not has_voyage:
-        return ("No VOYAGE_API_KEY set, so search_knowledge can't embed queries — "
-                "the scan runs but findings won't be grounded in the knowledge base.")
+        return ("No Voyage API key provided, so search_knowledge can't embed "
+                "queries — the scan runs but findings won't be grounded in the "
+                "knowledge base.")
     return None
 
 
@@ -227,6 +228,8 @@ async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
         raise HTTPException(400, "mode must be 'agent' or 'ai'")
     if terms.lower() not in ("1", "true", "on", "yes"):
         raise HTTPException(400, "you must accept the Terms of Use to scan")
+    if not api_key.strip():
+        raise HTTPException(400, "an Anthropic API key is required")
     name = (apk.filename or "").strip()
     if not name.lower().endswith(".apk"):
         raise HTTPException(400, "please upload a .apk file")

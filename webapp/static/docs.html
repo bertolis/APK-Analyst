@@ -227,9 +227,10 @@
       key-handling promises above as exactly that: a promise about how this server behaves, not a guarantee
       the code can prove to you from the browser. The safest posture is in <a href="#protect">§7</a>.
     </div>
-    <h3>If you leave a key blank</h3>
-    <p>The scan falls back to the server's own key from its <code>.env</code> (useful when you run the tool
-      locally). If neither a pasted key nor a server key exists, the scan can't run.</p>
+    <h3>Bring-your-own-key (required)</h3>
+    <p>This service runs on <strong>your</strong> keys: an Anthropic key is <strong>required</strong> for
+      every scan, and a Voyage key is optional (it enables grounded citations). There is no shared server
+      key — if you don't supply an Anthropic key, the scan won't start.</p>
     <div class="note">
       <strong>Self-hosting note.</strong> Keys are read from <code>.env</code> once at startup. After adding
       or changing a key there, restart the server (<span class="kbd">Ctrl+C</span> and relaunch) — a running
