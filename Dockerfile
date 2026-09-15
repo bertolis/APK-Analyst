@@ -45,9 +45,19 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Prebuild the RAG index into the image so agentic grounding works without a
-# runtime Voyage key. Needs VOYAGE_API_KEY at build time; if absent, the build
-# still succeeds and ships a MASVS-only (or empty) index — rebuild later.
-RUN mkdir -p /data && (python3 run.py --build-kb || echo "KB build skipped — build later with --build-kb")
+# runtime Voyage key. The Voyage key is passed as a BuildKit secret so it is
+# used only during this step and never stored in an image layer:
+#
+#   DOCKER_BUILDKIT=1 docker build \
+#     --secret id=voyage,env=VOYAGE_API_KEY -t apkanalyst .
+#
+# If the secret is absent the build still succeeds and ships a MASVS-only (or
+# empty) index — you can rebuild later with --build-kb.
+RUN --mount=type=secret,id=voyage \
+    mkdir -p /data && \
+    VOYAGE_API_KEY="$(cat /run/secrets/voyage 2>/dev/null || true)" \
+        python3 run.py --build-kb \
+    || echo "KB build skipped — build later with --build-kb"
 
 # Non-root user; own the app + data dirs.
 RUN useradd --system --uid 10001 --home /home/appuser --create-home appuser \
