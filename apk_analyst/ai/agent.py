@@ -95,7 +95,8 @@ def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
                     max_iterations: int = MAX_ITERATIONS, verbose: bool = True,
                     on_expensive_retry: ConfirmRetry = None,
                     on_progress: "ProgressCb" = None,
-                    should_cancel: "CancelCb" = None) -> AgentResult:
+                    should_cancel: "CancelCb" = None,
+                    voyage_api_key: str | None = None) -> AgentResult:
     """`on_progress`, if given, is called once per iteration as
     on_progress(iteration, max_iterations, last_tool_names) so a UI can show
     live progress. It must not raise.
@@ -104,7 +105,7 @@ def analyze_agentic(summary: dict, client: anthropic.Anthropic | None = None,
     returns True the loop raises ScanCancelled so a user Stop takes effect within
     one iteration (before paying for the next model call)."""
     client = client or load_client()
-    tools = Toolbox(summary["workspace"])
+    tools = Toolbox(summary["workspace"], voyage_api_key=voyage_api_key)
 
     messages: list[dict] = [{"role": "user", "content": _seed_context(summary)}]
     tool_calls: list[str] = []

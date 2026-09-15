@@ -146,12 +146,19 @@
   <!-- INPUT -->
   <section class="card" id="form">
     <div class="row">
-      <div>
+      <div style="flex:1;min-width:220px">
         <label>Anthropic API key</label>
         <input id="key" type="password" placeholder="sk-ant-…  (leave blank to use the server's key)"
                autocomplete="off">
         <div class="hint">Used only for this scan — never stored or logged.
           <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get a key</a></div>
+      </div>
+      <div style="flex:1;min-width:220px">
+        <label>Voyage API key <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="voyage" type="password" placeholder="pa-…  (leave blank to use the server's key)"
+               autocomplete="off">
+        <div class="hint">Speeds up RAG grounding in agentic mode — skips the free-tier throttle.
+          <a href="https://dashboard.voyageai.com/" target="_blank" rel="noopener">Get a key</a></div>
       </div>
     </div>
 
@@ -262,6 +269,7 @@ function confirmModal({title, body, confirm, cancel}){
 async function startScan(ack){
   const fd = new FormData();
   fd.append("apk", file); fd.append("mode", mode); fd.append("api_key", $("#key").value);
+  fd.append("voyage_key", $("#voyage").value);
   fd.append("verbose", $("#verbose").checked ? "1" : "");
   if(ack) fd.append("ack", "1");
   const r = await fetch("/api/scan", {method:"POST", body:fd});

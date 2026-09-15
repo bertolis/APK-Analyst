@@ -101,10 +101,13 @@ TOOL_SCHEMAS = [
 class Toolbox:
     """Executes tool calls against one workspace, safely."""
 
-    def __init__(self, workspace: str):
+    def __init__(self, workspace: str, voyage_api_key: str | None = None):
         self.root = Path(workspace).resolve()
         self._kb = None            # lazily-loaded KnowledgeBase (Step 4 RAG)
         self._kb_tried = False
+        # Optional bring-your-own Voyage key for search_knowledge query embeds;
+        # falls back to the server/.env key when None.
+        self._voyage_api_key = voyage_api_key or None
 
     def run(self, name: str, tool_input: dict) -> str:
         try:
@@ -187,7 +190,12 @@ class Toolbox:
         try:
             from ..knowledge.store import KnowledgeBase
             if KnowledgeBase.exists():
-                self._kb = KnowledgeBase.load()
+                embedder = None
+                if self._voyage_api_key:
+                    import voyageai
+                    from ..knowledge.embedder import Embedder
+                    embedder = Embedder(client=voyageai.Client(api_key=self._voyage_api_key))
+                self._kb = KnowledgeBase.load(embedder=embedder)
         except Exception:
             self._kb = None
         return self._kb

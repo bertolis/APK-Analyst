@@ -99,8 +99,10 @@ _LOCK = threading.Lock()
 
 # --- the background scan ------------------------------------------------------
 
-def _run_scan(job: Job, apk_path: Path, api_key: Optional[str]) -> None:
-    """Executed in a worker thread. `api_key` stays local to this function."""
+def _run_scan(job: Job, apk_path: Path, api_key: Optional[str],
+              voyage_key: Optional[str] = None) -> None:
+    """Executed in a worker thread. `api_key`/`voyage_key` stay local to this
+    function — never written to the job record, logs, or disk."""
     try:
         client = anthropic.Anthropic(api_key=api_key) if api_key else None
 
@@ -139,7 +141,8 @@ def _run_scan(job: Job, apk_path: Path, api_key: Optional[str]) -> None:
 
             # Unattended: on_expensive_retry left as default (auto-retries once).
             result = analyze_agentic(summary, client=client, verbose=False,
-                                     on_progress=_progress, should_cancel=_cancelled)
+                                     on_progress=_progress, should_cancel=_cancelled,
+                                     voyage_api_key=voyage_key)
             job.stage = "finalizing"
             job.add_log(f"Investigation done ({result.iterations} iterations, "
                         f"{len(result.tool_calls)} tool calls) — writing the report…")
@@ -169,19 +172,20 @@ def _run_scan(job: Job, apk_path: Path, api_key: Optional[str]) -> None:
 
 # --- endpoints ----------------------------------------------------------------
 
-def _grounding_warning() -> Optional[str]:
+def _grounding_warning(voyage_key: Optional[str] = None) -> Optional[str]:
     """If agentic RAG grounding can't actually run, explain why (else None).
 
     Agentic scans call `search_knowledge`, which needs both a built index and a
     Voyage key to embed the query. When either is missing the tool quietly no-ops
     and the report is produced *without* real retrieval — so we warn before the
-    (paid) model calls start, letting the caller decide whether to continue."""
+    (paid) model calls start, letting the caller decide whether to continue. A
+    caller-supplied Voyage key counts, so the warning clears once one is given."""
     try:
         from apk_analyst.knowledge.store import KnowledgeBase
         has_index = KnowledgeBase.exists()
     except Exception:
         has_index = False
-    has_voyage = bool(os.getenv("VOYAGE_API_KEY"))
+    has_voyage = bool(voyage_key) or bool(os.getenv("VOYAGE_API_KEY"))
     if not has_index:
         return ("No knowledge-base index found, so findings won't be grounded in "
                 "OWASP MASVS / methodology (build it once with `--build-kb`).")
@@ -193,19 +197,21 @@ def _grounding_warning() -> Optional[str]:
 
 @app.post("/api/scan")
 async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
-               api_key: str = Form(""), verbose: str = Form(""),
-               ack: str = Form("")) -> JSONResponse:
+               api_key: str = Form(""), voyage_key: str = Form(""),
+               verbose: str = Form(""), ack: str = Form("")) -> JSONResponse:
     if mode not in ("agent", "ai"):
         raise HTTPException(400, "mode must be 'agent' or 'ai'")
     name = (apk.filename or "").strip()
     if not name.lower().endswith(".apk"):
         raise HTTPException(400, "please upload a .apk file")
 
+    voyage = voyage_key.strip() or None
+
     # Pre-charge grounding check: warn (once) before any paid model call so the
     # caller can decide to continue ungrounded or fix the KB first.
     acked = ack.lower() in ("1", "true", "on", "yes")
     if mode == "agent" and not acked:
-        warn = _grounding_warning()
+        warn = _grounding_warning(voyage)
         if warn:
             return JSONResponse(status_code=409,
                                 content={"needs_ack": True, "warning": warn})
@@ -229,7 +235,8 @@ async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
     with _LOCK:
         _JOBS[job_id] = job
     key = api_key.strip() or None
-    threading.Thread(target=_run_scan, args=(job, dest, key), daemon=True).start()
+    threading.Thread(target=_run_scan, args=(job, dest, key, voyage),
+                     daemon=True).start()
     return JSONResponse({"job_id": job_id})
 
 
