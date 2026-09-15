@@ -88,6 +88,7 @@
       <a href="#data">8. Your APK &amp; your data</a>
       <a href="#grounding">9. Grounding &amp; citations</a>
       <a href="#selfhost">10. Running it yourself</a>
+      <a href="#legal">11. Legal &amp; disclaimer</a>
     </div>
   </section>
 
@@ -135,19 +136,21 @@
         <td><strong>Full agentic</strong><br><span class="muted">recommended</span></td>
         <td>The tool-driven agent investigates the decompiled code across many steps, verifying each
             finding against the real bytecode.</td>
-        <td>A few minutes; higher cost (many model calls).</td>
+        <td>A few minutes; higher cost — typically <strong>~$1.20–1.50</strong> per scan (many model calls).</td>
         <td>Yes — calls <code>search_knowledge</code> (needs a Voyage key + a built index).</td>
       </tr>
       <tr>
         <td><strong>Single-call</strong></td>
         <td>One structured pass over the extracted facts. Fewer, shallower findings — good for a quick look.</td>
-        <td>~15–30s; low cost (one call).</td>
+        <td>~15–30s; low cost — roughly <strong>~$0.10</strong> (one call).</td>
         <td>No retrieval step; uses no Voyage key.</td>
       </tr>
     </table>
     <p class="muted">Agentic mode consistently finds more real issues because it <em>verifies</em> rather
       than guesses — in our case study it caught the same headline issues as single-call plus three extra
       code-level bugs, and retracted a false positive single-call had asserted.</p>
+    <p class="muted">Costs are rough estimates that vary with app size, and are billed to whichever
+      API key runs the scan (yours if you provide one).</p>
   </section>
 
   <!-- 4 -->
@@ -299,6 +302,28 @@ python3 -m uvicorn webapp.server:app --port 8077</code></pre>
       <strong>MASVS-only</strong> and the tool still works — findings just cite MASVS. Full setup details,
       including how to add your own methodology notes, are in the project README and
       <code>playbook/README.md</code>.</p>
+  </section>
+
+  <!-- 11 -->
+  <section class="card" id="legal">
+    <h2>11. Legal &amp; disclaimer</h2>
+    <ul>
+      <li><strong>Only scan apps you're authorized to analyze.</strong> By uploading an APK you confirm
+        you have the right to do so. Don't upload apps you don't own or lack permission to inspect.</li>
+      <li><strong>Findings are AI-generated and not guaranteed.</strong> They may include false positives
+        or miss real issues, and are for informational purposes only — not a certification, audit, or
+        professional security assessment. Verify anything important independently.</li>
+      <li><strong>No warranty; no liability.</strong> This tool is provided "as is", without warranty of
+        any kind. The operator is not liable for any loss or damage arising from its use.</li>
+      <li><strong>Third-party processing.</strong> Running a scan sends the app's extracted data to
+        Anthropic (and, for grounding, query text to Voyage). Their terms and privacy policies apply.</li>
+      <li><strong>API costs are yours.</strong> If you supply your own key, all usage is billed to that
+        account.</li>
+    </ul>
+    <p class="muted">The project's source code is released under the
+      <a href="https://polyformproject.org/licenses/noncommercial/1.0.0/" target="_blank" rel="noopener">PolyForm
+      Noncommercial License 1.0.0</a> — that governs reuse of the <em>code</em>; use of this hosted service
+      is governed by the terms on this page.</p>
   </section>
 
   <div class="foot">
