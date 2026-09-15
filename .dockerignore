@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+APKs/
+workspace/
+webapp/_jobs/
+webapp/_metrics.json
+apk_analyst/data/
+__pycache__/
+*.pyc
+.DS_Store
+STUDY_NOTES.md
+tests/
+videos/
