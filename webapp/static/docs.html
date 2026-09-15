@@ -89,6 +89,7 @@
       <a href="#grounding">9. Grounding &amp; citations</a>
       <a href="#selfhost">10. Running it yourself</a>
       <a href="#legal">11. Legal &amp; disclaimer</a>
+      <a href="#privacy">12. Privacy &amp; data</a>
     </div>
   </section>
 
@@ -324,6 +325,29 @@ python3 -m uvicorn webapp.server:app --port 8077</code></pre>
       <a href="https://polyformproject.org/licenses/noncommercial/1.0.0/" target="_blank" rel="noopener">PolyForm
       Noncommercial License 1.0.0</a> — that governs reuse of the <em>code</em>; use of this hosted service
       is governed by the terms on this page.</p>
+  </section>
+
+  <!-- 12 -->
+  <section class="card" id="privacy">
+    <h2>12. Privacy &amp; data</h2>
+    <ul>
+      <li><strong>Your APK is processed transiently.</strong> It's unpacked into a per-scan working
+        directory that is <strong>deleted right after the scan</strong>. The app isn't archived or stored
+        long-term.</li>
+      <li><strong>Where your data goes.</strong> To analyze the app, its extracted contents are sent to
+        <strong>Anthropic</strong> (the analysis model) and, for grounding, query text to
+        <strong>Voyage AI</strong> (embeddings). Their processing is governed by their own terms and
+        privacy policies. Anthropic does not train its models on data submitted through its API by default.</li>
+      <li><strong>API keys.</strong> A key you paste is used only for that scan and never stored, logged,
+        or written to disk (see <a href="#handling">§6</a>).</li>
+      <li><strong>Reports.</strong> A finished report is held in server memory only and is not written to a
+        database; it does not survive a server restart.</li>
+      <li><strong>Operational logs.</strong> Basic request/usage counts may be kept to run and protect the
+        service; these are not sold or shared, and are not used to identify you.</li>
+      <li><strong>Don't upload sensitive or unauthorized apps.</strong> Only submit apps you're allowed to
+        analyze and that you're comfortable sending to the third-party providers above.</li>
+    </ul>
+    <p class="muted">Questions or a removal request can be directed to the site operator.</p>
   </section>
 
   <div class="foot">
