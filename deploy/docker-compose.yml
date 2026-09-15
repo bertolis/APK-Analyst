@@ -11,8 +11,27 @@
 #   METRICS_TOKEN=... docker compose up -d --build
 #
 # The app reaches the APIs via HTTPS_PROXY; decompiling itself needs no network.
+# Inbound traffic enters through nginx (the only published container); the app
+# itself is on the internal network only, so it can neither be reached directly
+# nor make direct outbound connections.
 
 services:
+  # Inbound reverse proxy — the only container exposed to the host. Forwards to
+  # the app over the internal network. (An internal-only container cannot publish
+  # a port itself, so this fronts it.)
+  web:
+    image: nginx:1.27-alpine
+    depends_on:
+      - app
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8077:8077"
+    networks:
+      - frontend      # published to the host
+      - noegress      # can reach the app
+    restart: unless-stopped
+
   egress-proxy:
     build: ./proxy
     networks:
@@ -31,8 +50,6 @@ services:
       NO_PROXY: "localhost,127.0.0.1"
       METRICS_TOKEN: "${METRICS_TOKEN:-}"
       SCAN_WORKERS: "${SCAN_WORKERS:-3}"
-    ports:
-      - "8077:8077"
     networks:
       - noegress      # ONLY this network -> no direct route to the internet
     read_only: true
@@ -56,6 +73,7 @@ services:
     restart: unless-stopped
 
 networks:
-  egress: {}
+  frontend: {}        # host-facing (nginx only)
+  egress: {}          # internet-facing (egress-proxy only)
   noegress:
-    internal: true    # no gateway to the outside world
+    internal: true    # no gateway to the outside world (app + proxies)
