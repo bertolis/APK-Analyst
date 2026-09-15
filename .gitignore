@@ -33,3 +33,6 @@ venv/
 # macOS
 .DS_Store
 webapp/_metrics.json
+
+# internal security notes — keep local
+SECURITY_REVIEW.md
