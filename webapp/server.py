@@ -93,6 +93,10 @@ class Job:
     verbose: bool = False           # log agent reasoning + full tool inputs
     log: list[str] = field(default_factory=list)  # streamed activity lines
     _t0: float = field(default_factory=time.monotonic)
+    _created: float = field(default_factory=time.time)   # wall-clock, for pruning
+
+    def is_finished(self) -> bool:
+        return self.stage in ("done", "error", "cancelled")
 
     _MAX_LOG = 250  # keep memory bounded on long agentic runs
 
@@ -118,6 +122,27 @@ class Job:
 
 _JOBS: dict[str, Job] = {}
 _LOCK = threading.Lock()
+
+# Job store is in-memory, so prune it to stop unbounded growth over uptime.
+JOB_TTL_SECONDS = 3600   # forget a finished job ~1h after it started
+MAX_JOBS = 200           # hard cap; drop oldest finished jobs beyond this
+
+
+def _prune_jobs() -> None:
+    """Drop old/finished jobs so the in-memory store can't grow without bound.
+    Only ever removes FINISHED jobs — a running scan is never pruned. Call under
+    _LOCK."""
+    now = time.time()
+    # 1) age-out finished jobs past the TTL
+    for jid in [j.id for j in _JOBS.values()
+                if j.is_finished() and now - j._created > JOB_TTL_SECONDS]:
+        _JOBS.pop(jid, None)
+    # 2) enforce the hard cap by removing the oldest finished jobs
+    if len(_JOBS) > MAX_JOBS:
+        finished = sorted((j for j in _JOBS.values() if j.is_finished()),
+                          key=lambda j: j._created)
+        for j in finished[: len(_JOBS) - MAX_JOBS]:
+            _JOBS.pop(j.id, None)
 
 
 # --- the background scan ------------------------------------------------------
@@ -264,6 +289,7 @@ async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
 
     job = Job(id=job_id, mode=mode, verbose=verbose.lower() in ("1", "true", "on", "yes"))
     with _LOCK:
+        _prune_jobs()
         _JOBS[job_id] = job
     key = api_key.strip() or None
     _bump_metric(f"scan_{mode}")   # scan_ai / scan_agent

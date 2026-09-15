@@ -74,6 +74,7 @@ CMD ["python3", "-m", "uvicorn", "webapp.server:app", "--host", "0.0.0.0", "--po
 #
 #   docker run --rm \
 #     -p 8077:8077 \
+#     --log-opt max-size=10m --log-opt max-file=3 \
 #     --read-only \
 #     --tmpfs /app/webapp/_jobs:rw,size=1g,noexec,nosuid \
 #     --tmpfs /tmp:rw,size=256m,noexec,nosuid \

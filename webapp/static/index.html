@@ -166,14 +166,14 @@
   <section class="card" id="form">
     <div class="row">
       <div style="flex:1;min-width:220px">
-        <label>Anthropic API key <span style="color:var(--crit);font-weight:600">*required</span></label>
+        <label>Anthropic API key <span style="color:var(--accent);font-weight:600;font-size:11px;border:1px solid var(--accent);border-radius:5px;padding:1px 6px;margin-left:4px">required</span></label>
         <input id="key" type="password" placeholder="sk-ant-…"
                autocomplete="off">
         <div class="hint">Used only for this scan — never stored or logged.
           <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get a key</a></div>
       </div>
       <div style="flex:1;min-width:220px">
-        <label>Voyage API key <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+        <label>Voyage API key <span style="color:var(--muted);font-weight:400;font-size:11px;border:1px solid var(--line);border-radius:5px;padding:1px 6px;margin-left:4px">optional</span></label>
         <input id="voyage" type="password" placeholder="pa-…"
                autocomplete="off">
         <div class="hint">Enables RAG grounding (citations) in agentic mode — without it the scan still runs, ungrounded.
