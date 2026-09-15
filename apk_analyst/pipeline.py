@@ -57,7 +57,7 @@ def analyze(apk_path: str, workspace: str = "workspace",
     step("Detecting app framework (native / RN / Flutter / Xamarin)…")
     frameworks = detect_framework(str(apk))
     step("Inventorying native libraries (.so)…")
-    natives = inventory_natives(str(apk))
+    natives = inventory_natives(str(apk), on_note=on_step)
     step("Decompiling Java with jadx…")
     jadx = run_jadx(str(apk), str(work / "jadx"))
     step("Unpacking smali + resources with apktool…")
