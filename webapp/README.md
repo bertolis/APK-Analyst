@@ -21,9 +21,16 @@ Then open <http://127.0.0.1:8077>.
   (bring-your-own-key). Leave it blank locally to fall back to the server's
   `.env` key. The key is used only to build that scan's client — it is never
   stored, logged, or written to disk.
-- **Grounding key (Voyage)** — read from the server's `.env` only (no web
-  field). If it's missing (or the index isn't built), an agentic scan pops a
-  warning *before* any paid model call: continue ungrounded, or cancel.
+- **Grounding key (Voyage)** — optional web field (bring-your-own), else read
+  from the server's `.env`. Used by `search_knowledge` in agentic mode to embed
+  the query for RAG grounding. If no key is available (and none in `.env`) or the
+  index isn't built, an agentic scan pops a warning *before* any paid model call:
+  continue ungrounded, or cancel. A caller-supplied key clears that warning.
+  Note: BYOK only *speeds up* grounding when the visitor's Voyage account is
+  card-backed — the 3 RPM / 10K TPM throttle is the free-tier-without-a-card rate.
+
+A user-facing documentation page is served at `/docs` (how it works, why it needs
+keys, how keys/data are handled, and the Voyage free-vs-paid throttle).
 
 > **Restart after editing `.env`.** Keys and directory settings are read once at
 > startup, so a running server won't see changes to `.env` — restart it (Ctrl+C

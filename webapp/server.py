@@ -50,7 +50,9 @@ JOBS_DIR.mkdir(exist_ok=True)
 
 MAX_APK_BYTES = 200 * 1024 * 1024  # 200 MB upload cap
 
-app = FastAPI(title="APKAnalyst")
+# docs_url disabled so /docs serves our user-facing documentation page instead of
+# FastAPI's built-in Swagger UI (the interactive API schema is a dev-only convenience).
+app = FastAPI(title="APKAnalyst", docs_url=None, redoc_url=None)
 
 
 # --- job state ----------------------------------------------------------------
@@ -274,6 +276,13 @@ async def report(job_id: str) -> JSONResponse:
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/docs")
+async def docs() -> FileResponse:
+    """User-facing documentation: how it works, why it needs API keys, and how
+    keys/data are handled."""
+    return FileResponse(STATIC / "docs.html")
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
