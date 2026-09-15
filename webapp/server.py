@@ -50,6 +50,24 @@ JOBS_DIR.mkdir(exist_ok=True)
 
 MAX_APK_BYTES = 200 * 1024 * 1024  # 200 MB upload cap
 
+# --- simple first-party usage metrics (no third-party trackers) ---------------
+METRICS_FILE = HERE / "_metrics.json"   # git-ignored; survives restarts
+_METRICS_LOCK = threading.Lock()
+
+
+def _bump_metric(key: str) -> None:
+    """Increment one counter in the metrics file (visits / scans by mode)."""
+    with _METRICS_LOCK:
+        try:
+            data = json.loads(METRICS_FILE.read_text()) if METRICS_FILE.exists() else {}
+        except Exception:
+            data = {}
+        data[key] = int(data.get(key, 0)) + 1
+        try:
+            METRICS_FILE.write_text(json.dumps(data))
+        except Exception:
+            pass
+
 # docs_url disabled so /docs serves our user-facing documentation page instead of
 # FastAPI's built-in Swagger UI (the interactive API schema is a dev-only convenience).
 app = FastAPI(title="APKAnalyst", docs_url=None, redoc_url=None)
@@ -237,6 +255,7 @@ async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
     with _LOCK:
         _JOBS[job_id] = job
     key = api_key.strip() or None
+    _bump_metric(f"scan_{mode}")   # scan_ai / scan_agent
     threading.Thread(target=_run_scan, args=(job, dest, key, voyage),
                      daemon=True).start()
     return JSONResponse({"job_id": job_id})
@@ -275,7 +294,23 @@ async def report(job_id: str) -> JSONResponse:
 
 @app.get("/")
 async def index() -> FileResponse:
+    _bump_metric("visits")
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/metrics")
+async def metrics() -> JSONResponse:
+    """First-party usage counters (visits + scans by mode)."""
+    with _METRICS_LOCK:
+        try:
+            data = json.loads(METRICS_FILE.read_text()) if METRICS_FILE.exists() else {}
+        except Exception:
+            data = {}
+    return JSONResponse({
+        "visits": int(data.get("visits", 0)),
+        "scans_single_call": int(data.get("scan_ai", 0)),
+        "scans_agentic": int(data.get("scan_agent", 0)),
+    })
 
 
 @app.get("/docs")

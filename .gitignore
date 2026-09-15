@@ -32,3 +32,4 @@ venv/
 
 # macOS
 .DS_Store
+webapp/_metrics.json
