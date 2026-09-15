@@ -10,6 +10,15 @@
     --fg:#e7e9ee; --muted:#9aa3b2; --accent:#5b8cff; --accent2:#3a5bd9;
     --crit:#ff5a5a; --high:#ff9036; --med:#f2c14e; --ok:#3ecf8e;
   }
+  :root[data-theme="light"]{
+    --bg:#f4f6fb; --panel:#ffffff; --panel2:#eef1f7; --line:#d9deea;
+    --fg:#1a1d24; --muted:#5b6472; --accent:#3a5bd9; --accent2:#2f49b0;
+    --crit:#d92d2d; --high:#c96a12; --med:#b8890a; --ok:#1a9e63;
+  }
+  header{position:relative}
+  .theme{position:absolute;top:0;right:0;border:1px solid var(--line);background:var(--panel2);
+    color:var(--fg);border-radius:9px;padding:7px 12px;font-size:13px;cursor:pointer}
+  .theme:hover{border-color:var(--accent)}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);
     font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -31,7 +40,7 @@
     border-radius:5px;padding:1px 6px}
   pre{background:#0b0d12;border:1px solid var(--line);border-radius:10px;
     padding:14px 16px;overflow-x:auto;margin:12px 0}
-  pre code{background:none;border:0;padding:0;font-size:12.5px;line-height:1.6}
+  pre code{background:none;border:0;padding:0;font-size:12.5px;line-height:1.6;color:#e7e9ee}
   .muted{color:var(--muted)}
   table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.8px}
   th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
@@ -58,6 +67,7 @@
 <body>
 <div class="wrap">
   <header>
+    <button class="theme" id="themeBtn" title="Toggle light / dark">🌙 Dark</button>
     <h1>APKAnalyst — Documentation</h1>
     <p>How the tool works, what the API keys are for, and how your keys and data are handled.</p>
     <nav class="top">
@@ -297,5 +307,17 @@ python3 -m uvicorn webapp.server:app --port 8077</code></pre>
     Built on jadx, Apktool, Voyage AI, and Anthropic Claude · grounded in OWASP MASVS &amp; the Mobile Top 10.
   </div>
 </div>
+<script>
+(function(){
+  const el = document.documentElement, btn = document.getElementById("themeBtn");
+  let t = "dark";
+  try { t = localStorage.getItem("apkanalyst-theme") || "dark"; } catch(e){}
+  const apply = v => { el.setAttribute("data-theme", v);
+    btn.textContent = v === "light" ? "☀️ Light" : "🌙 Dark"; };
+  apply(t);
+  btn.onclick = () => { const n = el.getAttribute("data-theme") === "light" ? "dark" : "light";
+    apply(n); try { localStorage.setItem("apkanalyst-theme", n); } catch(e){} };
+})();
+</script>
 </body>
 </html>

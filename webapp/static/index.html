@@ -11,6 +11,16 @@
     --crit:#ff5a5a; --high:#ff9036; --med:#f2c14e; --low:#5b8cff; --info:#8b93a7;
     --ok:#3ecf8e;
   }
+  :root[data-theme="light"]{
+    --bg:#f4f6fb; --panel:#ffffff; --panel2:#eef1f7; --line:#d9deea;
+    --fg:#1a1d24; --muted:#5b6472; --accent:#3a5bd9; --accent2:#2f49b0;
+    --crit:#d92d2d; --high:#c96a12; --med:#b8890a; --low:#3a5bd9; --info:#6b7488;
+    --ok:#1a9e63;
+  }
+  .theme{position:absolute;top:0;right:0;border:1px solid var(--line);background:var(--panel2);
+    color:var(--fg);border-radius:9px;padding:7px 12px;font-size:13px;cursor:pointer}
+  .theme:hover{border-color:var(--accent)}
+  header{position:relative}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);
     font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -62,6 +72,13 @@
   .console .ln.stage .m{color:var(--ok)}         /* pipeline stage */
   .console .ln.think .m{color:#c9a2ff}           /* verbose: agent reasoning */
   .console .ln.dbg .m{color:#7f8aa0}             /* verbose: raw tool input */
+  /* light theme: give the console a light surface so it fits the page */
+  :root[data-theme="light"] .console{background:#f7f8fc;color:#4b5568}
+  :root[data-theme="light"] .console .ln .t{color:#9aa3b2}
+  :root[data-theme="light"] .console .ln.think .m{color:#7d3ec9}
+  :root[data-theme="light"] .console .ln.dbg .m{color:#6b7488}
+  :root[data-theme="light"] .console .ln.stage .m{color:#12b3a6}
+  :root[data-theme="light"] .console .ln.tool .m{color:#2f6bff}
   .vbox{display:flex;align-items:center;gap:9px;color:var(--fg);font-size:14px;cursor:pointer}
   .vbox input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
   .vhint{color:var(--muted);font-size:12.5px}
@@ -139,6 +156,7 @@
 <body>
 <div class="wrap">
   <header>
+    <button class="theme" id="themeBtn" title="Toggle light / dark">🌙 Dark</button>
     <h1>APKAnalyst</h1>
     <p>Drop an Android APK — an AI security analyst agent investigates it and reports back.
       <a href="/docs" style="margin-left:6px">How it works &amp; API keys →</a></p>
@@ -149,14 +167,14 @@
     <div class="row">
       <div style="flex:1;min-width:220px">
         <label>Anthropic API key</label>
-        <input id="key" type="password" placeholder="sk-ant-…  (leave blank to use the server's key)"
+        <input id="key" type="password" placeholder="sk-ant-…"
                autocomplete="off">
         <div class="hint">Used only for this scan — never stored or logged.
           <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get a key</a></div>
       </div>
       <div style="flex:1;min-width:220px">
         <label>Voyage API key <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-        <input id="voyage" type="password" placeholder="pa-…  (leave blank to use the server's key)"
+        <input id="voyage" type="password" placeholder="pa-…"
                autocomplete="off">
         <div class="hint">Speeds up RAG grounding in agentic mode — skips the free-tier throttle.
           <a href="https://dashboard.voyageai.com/" target="_blank" rel="noopener">Get a key</a></div>
@@ -209,6 +227,25 @@
 
 <script>
 const $ = s => document.querySelector(s);
+// theme toggle (persisted per browser)
+(function(){
+  let t = "dark";
+  try { t = localStorage.getItem("apkanalyst-theme") || "dark"; } catch(e){}
+  const apply = v => {
+    document.documentElement.setAttribute("data-theme", v);
+    const b = $("#themeBtn");
+    if(b) b.textContent = v === "light" ? "☀️ Light" : "🌙 Dark";
+  };
+  apply(t);
+  window.addEventListener("DOMContentLoaded", () => {
+    apply(document.documentElement.getAttribute("data-theme"));
+    $("#themeBtn").onclick = () => {
+      const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+      apply(next);
+      try { localStorage.setItem("apkanalyst-theme", next); } catch(e){}
+    };
+  });
+})();
 const STAGES = ["decompiling","analyzing","finalizing","done"];
 const STAGE_LABEL = {queued:"Queued…",decompiling:"Decompiling the APK…",
   analyzing:"Agent investigating…",finalizing:"Writing the report…",done:"Done",
