@@ -39,11 +39,14 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from dotenv import load_dotenv
+
 from apk_analyst.ai.analyst import analyze_with_ai, report_to_dict
 from apk_analyst.errors import ScanCancelled
 from apk_analyst.pipeline import analyze
 
 HERE = Path(__file__).resolve().parent
+load_dotenv(HERE.parent / ".env")   # read keys/token from .env at startup
 STATIC = HERE / "static"
 JOBS_DIR = HERE / "_jobs"          # per-scan workspaces (git-ignored)
 JOBS_DIR.mkdir(exist_ok=True)
