@@ -181,6 +181,11 @@
       </div>
     </div>
 
+    <label class="vbox" style="margin-top:12px">
+      <input type="checkbox" id="remember">
+      <span>Remember keys on this device <span class="vhint">— saved only in this browser, never sent to the server</span></span>
+    </label>
+
     <label style="margin-top:16px">Scan mode</label>
     <div class="modes">
       <div class="mode sel" data-mode="agent">
@@ -250,6 +255,24 @@ const $ = s => document.querySelector(s);
       apply(next);
       try { localStorage.setItem("apkanalyst-theme", next); } catch(e){}
     };
+  });
+})();
+
+// remember keys on this device (opt-in; localStorage only, never sent server-side)
+(function(){
+  const KKEY="apkanalyst-keys";
+  window.addEventListener("DOMContentLoaded", () => {
+    const rem=$("#remember"), k=$("#key"), v=$("#voyage");
+    try {
+      const saved=JSON.parse(localStorage.getItem(KKEY)||"null");
+      if(saved){ rem.checked=true; k.value=saved.a||""; v.value=saved.v||""; }
+    } catch(e){}
+    const save=()=>{ try{
+      if(rem.checked) localStorage.setItem(KKEY, JSON.stringify({a:k.value, v:v.value}));
+      else localStorage.removeItem(KKEY);
+    }catch(e){} };
+    rem.onchange=save; k.addEventListener("input",save); v.addEventListener("input",save);
+    if(typeof updateGo==="function") updateGo();
   });
 })();
 const STAGES = ["decompiling","analyzing","finalizing","done"];

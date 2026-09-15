@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import shutil
 import threading
 import time
@@ -128,6 +129,37 @@ JOB_TTL_SECONDS = 3600   # forget a finished job ~1h after it started
 MAX_JOBS = 200           # hard cap; drop oldest finished jobs beyond this
 
 
+# Bounded worker pool: scans wait in a queue instead of each spawning a thread,
+# so heavy traffic degrades gracefully (jobs sit as "queued") rather than
+# overloading the box. Tune the worker count with SCAN_WORKERS.
+SCAN_WORKERS = max(1, int(os.getenv("SCAN_WORKERS", "3")))
+_SCAN_Q: "queue.Queue[tuple[Job, Path, Optional[str], Optional[str]]]" = queue.Queue()
+
+
+def _scan_worker() -> None:
+    """Long-lived worker: pull one queued scan at a time and run it."""
+    while True:
+        job, dest, key, voyage = _SCAN_Q.get()
+        try:
+            if job.cancel:                       # cancelled while still queued
+                job.add_log("Scan cancelled before it started.")
+                job.stage = "cancelled"
+                shutil.rmtree(dest.parent, ignore_errors=True)
+                continue
+            _run_scan(job, dest, key, voyage)
+        except Exception as e:                   # never let a worker thread die
+            job.error = f"{type(e).__name__}: {e}"
+            job.stage = "error"
+            shutil.rmtree(dest.parent, ignore_errors=True)
+        finally:
+            _SCAN_Q.task_done()
+
+
+for _i in range(SCAN_WORKERS):
+    threading.Thread(target=_scan_worker, name=f"scan-worker-{_i}",
+                     daemon=True).start()
+
+
 def _prune_jobs() -> None:
     """Drop old/finished jobs so the in-memory store can't grow without bound.
     Only ever removes FINISHED jobs — a running scan is never pruned. Call under
@@ -146,6 +178,7 @@ def _prune_jobs() -> None:
 
 
 # --- the background scan ------------------------------------------------------
+
 
 def _run_scan(job: Job, apk_path: Path, api_key: Optional[str],
               voyage_key: Optional[str] = None) -> None:
@@ -293,8 +326,12 @@ async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
         _JOBS[job_id] = job
     key = api_key.strip() or None
     _bump_metric(f"scan_{mode}")   # scan_ai / scan_agent
-    threading.Thread(target=_run_scan, args=(job, dest, key, voyage),
-                     daemon=True).start()
+    # Hand off to the worker pool. If all workers are busy the job waits in the
+    # queue as "queued" (status polling already surfaces this to the UI).
+    queued_ahead = _SCAN_Q.qsize()
+    _SCAN_Q.put((job, dest, key, voyage))
+    if queued_ahead:
+        job.add_log(f"Queued — {queued_ahead} scan(s) ahead of you.")
     return JSONResponse({"job_id": job_id})
 
 
