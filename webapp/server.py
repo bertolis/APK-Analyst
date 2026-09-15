@@ -213,9 +213,11 @@ def _grounding_warning(voyage_key: Optional[str] = None) -> Optional[str]:
         return ("No knowledge-base index found, so findings won't be grounded in "
                 "OWASP MASVS / methodology (build it once with `--build-kb`).")
     if not has_voyage:
-        return ("No Voyage API key provided, so search_knowledge can't embed "
-                "queries — the scan runs but findings won't be grounded in the "
-                "knowledge base.")
+        return ("No Voyage API key provided, so the scan runs but the knowledge "
+                "base isn't consulted — findings won't be grounded in OWASP MASVS "
+                "/ methodology and carry no citations. See the \"Scan modes\" "
+                "section in the docs (/docs#modes) for how a scan runs without a "
+                "Voyage key.")
     return None
 
 

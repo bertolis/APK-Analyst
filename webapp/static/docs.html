@@ -152,6 +152,12 @@
       code-level bugs, and retracted a false positive single-call had asserted.</p>
     <p class="muted">Costs are rough estimates that vary with app size, and are billed to whichever
       API key runs the scan (yours if you provide one).</p>
+    <p><strong>Without a Voyage key</strong> an agentic scan still runs fully — it explores the app with
+      tools and reports — but the knowledge base is <em>not consulted at all</em> (no MASVS/methodology
+      retrieval and no citations); the agent falls back on its own knowledge plus the methodology built
+      into its prompt. Single-call mode never uses the knowledge base either. So the practical difference
+      between single-call and an ungrounded agentic scan is the agentic loop's <em>tool exploration</em>
+      (reading files, grep, disassembling native libs) — not the knowledge base.</p>
   </section>
 
   <!-- 4 -->

@@ -301,7 +301,12 @@ function confirmModal({title, body, confirm, cancel}){
         <button class="confirm"></button>
       </div></div>`;
     bg.querySelector("h3").textContent = title;
-    bg.querySelector("p").textContent = body;
+    const p = bg.querySelector("p");
+    p.textContent = body;                         // escape first (body is trusted server text)
+    if(body.includes("/docs#modes")){             // make the docs reference clickable
+      p.innerHTML = p.innerHTML.replace("/docs#modes",
+        '<a href="/docs#modes" target="_blank" rel="noopener">/docs#modes</a>');
+    }
     bg.querySelector(".cancel").textContent = cancel || "Cancel";
     bg.querySelector(".confirm").textContent = confirm || "Continue";
     const close = v => { bg.remove(); document.removeEventListener("keydown", onKey); resolve(v); };
