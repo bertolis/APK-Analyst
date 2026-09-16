@@ -274,7 +274,13 @@ const STAGES = ["decompiling","analyzing","finalizing","done"];
 const STAGE_LABEL = {queued:"Queued…",decompiling:"Decompiling the APK…",
   analyzing:"Agent investigating…",finalizing:"Writing the report…",done:"Done",
   cancelled:"Scan stopped"};
-let mode = "agent", file = null, poll = null, currentJob = null;
+let mode = "agent", file = null, poll = null, currentJob = null, scanning = false;
+
+// Warn before leaving/reloading mid-scan — the page can't reconnect to a running
+// job, so navigating away loses the on-screen progress and report.
+window.addEventListener("beforeunload", (e) => {
+  if(scanning){ e.preventDefault(); e.returnValue = ""; return ""; }
+});
 
 // mode toggle
 document.querySelectorAll(".mode").forEach(m => m.onclick = () => {
@@ -371,7 +377,7 @@ $("#go").onclick = async () => {
     if(!job_id){                       // declined at the warning
       $("#progress").hidden = true; $("#go").disabled = false; return;
     }
-    currentJob = job_id;
+    currentJob = job_id; scanning = true;
     $("#stop").disabled = false; $("#stop").textContent = "■ Stop scan";
     poll = setInterval(() => checkStatus(job_id), 1000);
     checkStatus(job_id);
@@ -404,7 +410,7 @@ async function checkStatus(id){
     setFill(s.stage==="decompiling"?20:55);
   }
   if(s.done){
-    clearInterval(poll);
+    clearInterval(poll); scanning = false;
     $("#stop").disabled = true;
     if(s.stage === "error"){
       $("#runErr").textContent = "Scan failed — " + (s.error||"unknown error");
