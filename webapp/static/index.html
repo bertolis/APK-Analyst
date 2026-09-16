@@ -207,12 +207,6 @@
     </div>
     <input id="picker" type="file" accept=".apk,application/vnd.android.package-archive" hidden>
 
-    <label class="vbox" style="margin-top:16px">
-      <input type="checkbox" id="terms">
-      <span>I confirm I'm authorized to analyze this app and agree to the
-        <a href="/docs#legal" target="_blank" rel="noopener">Terms of Use</a>.</span>
-    </label>
-
     <button class="go" id="go" disabled>Start scan</button>
     <div class="hint" id="formErr"></div>
   </section>
@@ -305,9 +299,8 @@ function setFile(f){
   updateGo();
 }
 
-function updateGo(){ $("#go").disabled = !(file && $("#terms").checked && $("#key").value.trim()); }
+function updateGo(){ $("#go").disabled = !(file && $("#key").value.trim()); }
 document.addEventListener("DOMContentLoaded", () => {
-  $("#terms").onchange = updateGo;
   $("#key").oninput = updateGo;
 });
 
@@ -348,7 +341,6 @@ async function startScan(ack){
   const fd = new FormData();
   fd.append("apk", file); fd.append("mode", mode); fd.append("api_key", $("#key").value);
   fd.append("voyage_key", $("#voyage").value);
-  fd.append("terms", $("#terms").checked ? "1" : "");
   fd.append("verbose", $("#verbose").checked ? "1" : "");
   if(ack) fd.append("ack", "1");
   const r = await fetch("/api/scan", {method:"POST", body:fd});

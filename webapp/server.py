@@ -204,12 +204,9 @@ def _grounding_warning(voyage_key: Optional[str] = None) -> Optional[str]:
 @app.post("/api/scan")
 async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
                api_key: str = Form(""), voyage_key: str = Form(""),
-               verbose: str = Form(""), ack: str = Form(""),
-               terms: str = Form("")) -> JSONResponse:
+               verbose: str = Form(""), ack: str = Form("")) -> JSONResponse:
     if mode not in ("agent", "ai"):
         raise HTTPException(400, "mode must be 'agent' or 'ai'")
-    if terms.lower() not in ("1", "true", "on", "yes"):
-        raise HTTPException(400, "you must accept the Terms of Use to scan")
     if not api_key.strip():
         raise HTTPException(400, "an Anthropic API key is required")
     name = (apk.filename or "").strip()
