@@ -107,6 +107,9 @@ location · evidence · exploit path · fix · cited standards).
   decompiled app with tools and grounds findings in the RAG knowledge base. Slower
   and pricier, but verifies from evidence and finds more.
 
+Without a Voyage key, agentic still runs — you get the full tool-driven
+investigation, just with no OWASP retrieval (no citations).
+
 ### Grounding (RAG)
 
 Findings are grounded in a local vector knowledge base with two roles:
