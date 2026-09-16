@@ -181,9 +181,10 @@
       </div>
     </div>
 
+
     <label class="vbox" style="margin-top:12px">
       <input type="checkbox" id="remember">
-      <span>Remember keys on this device <span class="vhint">— saved only in this browser, never leaves it</span></span>
+      <span>Remember keys on this device</span>
     </label>
 
     <label style="margin-top:16px">Scan mode</label>
@@ -252,7 +253,7 @@ const $ = s => document.querySelector(s);
   });
 })();
 
-// remember keys on this device (opt-in; localStorage only, never sent server-side)
+// remember keys on this device (opt-in; localStorage only)
 (function(){
   const KKEY="apkanalyst-keys";
   window.addEventListener("DOMContentLoaded", () => {
