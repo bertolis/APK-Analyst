@@ -11,22 +11,18 @@ apk_analyst.ai.agent / analyst) behind a small FastAPI service:
 
 Design notes
 ------------
-- Scans are long (minutes) and CPU/network heavy, so each runs in a background
-  thread and the UI polls status. Job state lives in memory (fine for a single
-  local process; a public deployment would use a real queue + store).
-- **Bring-your-own-key:** the caller may supply an Anthropic API key with the
-  upload; it is used only to build that scan's client and is never written to
-  the job record, logs, or disk. If omitted, the server falls back to its own
-  .env key (handy locally).
-- Uploaded APKs are untrusted input fed to decompilers. That is fine locally;
-  before exposing this publicly, run scans in a sandbox/container and add
-  auth + rate limiting (see webapp/README.md).
+- This is a local, single-user tool. Each scan runs in a background thread and
+  the UI polls status; job state lives in memory. That's all a local run needs.
+- **Bring-your-own-key:** the caller supplies an Anthropic API key with the
+  upload (or sets it in .env); it is used only to build that scan's client and
+  is never written to the job record, logs, or disk.
+- Uploaded APKs are untrusted input fed to decompilers. Basic guards stay on
+  (path-safety in the agent tools, a decompression cap, an upload-size cap, and
+  per-scan workspace cleanup) so a malicious APK can't wreck the local machine.
 """
 from __future__ import annotations
 
 import json
-import os
-import queue
 import shutil
 import threading
 import time
@@ -36,7 +32,7 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -47,30 +43,12 @@ from apk_analyst.errors import ScanCancelled
 from apk_analyst.pipeline import analyze
 
 HERE = Path(__file__).resolve().parent
-load_dotenv(HERE.parent / ".env")   # read keys/token from .env at startup
+load_dotenv(HERE.parent / ".env")   # read keys from .env at startup
 STATIC = HERE / "static"
 JOBS_DIR = HERE / "_jobs"          # per-scan workspaces (git-ignored)
 JOBS_DIR.mkdir(exist_ok=True)
 
 MAX_APK_BYTES = 200 * 1024 * 1024  # 200 MB upload cap
-
-# --- simple first-party usage metrics (no third-party trackers) ---------------
-METRICS_FILE = HERE / "_metrics.json"   # git-ignored; survives restarts
-_METRICS_LOCK = threading.Lock()
-
-
-def _bump_metric(key: str) -> None:
-    """Increment one counter in the metrics file (visits / scans by mode)."""
-    with _METRICS_LOCK:
-        try:
-            data = json.loads(METRICS_FILE.read_text()) if METRICS_FILE.exists() else {}
-        except Exception:
-            data = {}
-        data[key] = int(data.get(key, 0)) + 1
-        try:
-            METRICS_FILE.write_text(json.dumps(data))
-        except Exception:
-            pass
 
 # docs_url disabled so /docs serves our user-facing documentation page instead of
 # FastAPI's built-in Swagger UI (the interactive API schema is a dev-only convenience).
@@ -94,10 +72,6 @@ class Job:
     verbose: bool = False           # log agent reasoning + full tool inputs
     log: list[str] = field(default_factory=list)  # streamed activity lines
     _t0: float = field(default_factory=time.monotonic)
-    _created: float = field(default_factory=time.time)   # wall-clock, for pruning
-
-    def is_finished(self) -> bool:
-        return self.stage in ("done", "error", "cancelled")
 
     _MAX_LOG = 250  # keep memory bounded on long agentic runs
 
@@ -124,100 +98,13 @@ class Job:
 _JOBS: dict[str, Job] = {}
 _LOCK = threading.Lock()
 
-# Job store is in-memory, so prune it to stop unbounded growth over uptime.
-JOB_TTL_SECONDS = 3600   # forget a finished job ~1h after it started
-MAX_JOBS = 200           # hard cap; drop oldest finished jobs beyond this
-
-
-# Per-IP rate limit on scan submissions — stops an abusive flood from burning
-# CPU/RAM, without constraining normal use (scans take minutes and run on the
-# user's own key). Sliding window, in-memory. Tune with the env vars.
-RATE_MAX = int(os.getenv("SCAN_RATE_MAX", "20"))        # scans per window per IP
-RATE_WINDOW = int(os.getenv("SCAN_RATE_WINDOW", "3600"))  # window in seconds
-_RATE: dict[str, list[float]] = {}
-_RATE_LOCK = threading.Lock()
-
-
-def _client_ip(request: Request) -> str:
-    """Client IP. Behind our own nginx, so trust the first X-Forwarded-For hop."""
-    xff = request.headers.get("x-forwarded-for", "")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
-
-
-def _rate_ok(ip: str) -> bool:
-    """True if this IP may start another scan; records the attempt when allowed."""
-    now = time.time()
-    with _RATE_LOCK:
-        hits = [t for t in _RATE.get(ip, []) if now - t < RATE_WINDOW]
-        if len(hits) >= RATE_MAX:
-            _RATE[ip] = hits
-            return False
-        hits.append(now)
-        _RATE[ip] = hits
-        # opportunistic cleanup of idle IPs so the map can't grow unbounded
-        if len(_RATE) > 10_000:
-            for k in [k for k, v in _RATE.items()
-                      if not any(now - t < RATE_WINDOW for t in v)]:
-                _RATE.pop(k, None)
-        return True
-
-
-# Bounded worker pool: scans wait in a queue instead of each spawning a thread,
-# so heavy traffic degrades gracefully (jobs sit as "queued") rather than
-# overloading the box. Tune the worker count with SCAN_WORKERS.
-SCAN_WORKERS = max(1, int(os.getenv("SCAN_WORKERS", "3")))
-_SCAN_Q: "queue.Queue[tuple[Job, Path, Optional[str], Optional[str]]]" = queue.Queue()
-
-
-def _scan_worker() -> None:
-    """Long-lived worker: pull one queued scan at a time and run it."""
-    while True:
-        job, dest, key, voyage = _SCAN_Q.get()
-        try:
-            if job.cancel:                       # cancelled while still queued
-                job.add_log("Scan cancelled before it started.")
-                job.stage = "cancelled"
-                shutil.rmtree(dest.parent, ignore_errors=True)
-                continue
-            _run_scan(job, dest, key, voyage)
-        except Exception as e:                   # never let a worker thread die
-            job.error = f"{type(e).__name__}: {e}"
-            job.stage = "error"
-            shutil.rmtree(dest.parent, ignore_errors=True)
-        finally:
-            _SCAN_Q.task_done()
-
-
-for _i in range(SCAN_WORKERS):
-    threading.Thread(target=_scan_worker, name=f"scan-worker-{_i}",
-                     daemon=True).start()
-
-
-def _prune_jobs() -> None:
-    """Drop old/finished jobs so the in-memory store can't grow without bound.
-    Only ever removes FINISHED jobs — a running scan is never pruned. Call under
-    _LOCK."""
-    now = time.time()
-    # 1) age-out finished jobs past the TTL
-    for jid in [j.id for j in _JOBS.values()
-                if j.is_finished() and now - j._created > JOB_TTL_SECONDS]:
-        _JOBS.pop(jid, None)
-    # 2) enforce the hard cap by removing the oldest finished jobs
-    if len(_JOBS) > MAX_JOBS:
-        finished = sorted((j for j in _JOBS.values() if j.is_finished()),
-                          key=lambda j: j._created)
-        for j in finished[: len(_JOBS) - MAX_JOBS]:
-            _JOBS.pop(j.id, None)
-
 
 # --- the background scan ------------------------------------------------------
 
 
 def _run_scan(job: Job, apk_path: Path, api_key: Optional[str],
               voyage_key: Optional[str] = None) -> None:
-    """Executed in a worker thread. `api_key`/`voyage_key` stay local to this
+    """Executed in a background thread. `api_key`/`voyage_key` stay local to this
     function — never written to the job record, logs, or disk."""
     try:
         client = anthropic.Anthropic(api_key=api_key) if api_key else None
@@ -315,7 +202,7 @@ def _grounding_warning(voyage_key: Optional[str] = None) -> Optional[str]:
 
 
 @app.post("/api/scan")
-async def scan(request: Request, apk: UploadFile = File(...), mode: str = Form("agent"),
+async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
                api_key: str = Form(""), voyage_key: str = Form(""),
                verbose: str = Form(""), ack: str = Form(""),
                terms: str = Form("")) -> JSONResponse:
@@ -340,13 +227,6 @@ async def scan(request: Request, apk: UploadFile = File(...), mode: str = Form("
             return JSONResponse(status_code=409,
                                 content={"needs_ack": True, "warning": warn})
 
-    # Per-IP rate limit — counted only when the scan is actually about to run
-    # (after the grounding-warning round-trip, before the upload body is read),
-    # so a fumbled form or an ack re-submit doesn't burn quota.
-    if not _rate_ok(_client_ip(request)):
-        raise HTTPException(429, f"rate limit: max {RATE_MAX} scans per "
-                                 f"{RATE_WINDOW // 60} min — please try again later")
-
     job_id = uuid.uuid4().hex[:12]
     work = JOBS_DIR / job_id
     work.mkdir(parents=True, exist_ok=True)
@@ -364,16 +244,11 @@ async def scan(request: Request, apk: UploadFile = File(...), mode: str = Form("
 
     job = Job(id=job_id, mode=mode, verbose=verbose.lower() in ("1", "true", "on", "yes"))
     with _LOCK:
-        _prune_jobs()
         _JOBS[job_id] = job
     key = api_key.strip() or None
-    _bump_metric(f"scan_{mode}")   # scan_ai / scan_agent
-    # Hand off to the worker pool. If all workers are busy the job waits in the
-    # queue as "queued" (status polling already surfaces this to the UI).
-    queued_ahead = _SCAN_Q.qsize()
-    _SCAN_Q.put((job, dest, key, voyage))
-    if queued_ahead:
-        job.add_log(f"Queued — {queued_ahead} scan(s) ahead of you.")
+    # Run the scan in its own background thread; the UI polls /api/status.
+    threading.Thread(target=_run_scan, args=(job, dest, key, voyage),
+                     name=f"scan-{job_id}", daemon=True).start()
     return JSONResponse({"job_id": job_id})
 
 
@@ -387,7 +262,7 @@ async def status(job_id: str) -> JSONResponse:
 
 @app.post("/api/cancel/{job_id}")
 async def cancel(job_id: str) -> JSONResponse:
-    """Request cancellation. The worker stops at its next checkpoint (between
+    """Request cancellation. The scan stops at its next checkpoint (between
     decompile stages / agent iterations), so 'cancelling' may lag a few seconds."""
     job = _JOBS.get(job_id)
     if job is None:
@@ -410,30 +285,7 @@ async def report(job_id: str) -> JSONResponse:
 
 @app.get("/")
 async def index() -> FileResponse:
-    _bump_metric("visits")
     return FileResponse(STATIC / "index.html")
-
-
-@app.get("/metrics")
-async def metrics(token: str = "") -> JSONResponse:
-    """First-party usage counters (visits + scans by mode). Gated by a secret:
-    set METRICS_TOKEN in the environment and pass it as ?token=… . If no token
-    is configured, the endpoint is hidden (404)."""
-    import hmac
-    configured = os.getenv("METRICS_TOKEN", "")
-    supplied = token or ""
-    if not configured or not hmac.compare_digest(supplied, configured):
-        raise HTTPException(404, "not found")
-    with _METRICS_LOCK:
-        try:
-            data = json.loads(METRICS_FILE.read_text()) if METRICS_FILE.exists() else {}
-        except Exception:
-            data = {}
-    return JSONResponse({
-        "visits": int(data.get("visits", 0)),
-        "scans_single_call": int(data.get("scan_ai", 0)),
-        "scans_agentic": int(data.get("scan_agent", 0)),
-    })
 
 
 @app.get("/docs")

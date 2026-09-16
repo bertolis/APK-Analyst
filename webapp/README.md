@@ -53,17 +53,12 @@ browser ──POST /api/scan (apk + mode + key)──►  FastAPI (server.py)
 `server.py` is a thin wrapper — all analysis is the existing
 `apk_analyst` package. Scans run in a background thread; job state is in memory.
 
-## Before exposing this publicly
+## Scope
 
-This is built to run locally. A public deployment needs hardening — the scan
-spends real money and runs decompilers on untrusted uploads:
-
-- **Cost / abuse:** the app already supports *bring-your-own-key*, so visitors
-  pay for their own scans. If you ever run scans on your own key, add auth,
-  per-IP rate limiting, and a daily cap first.
-- **Untrusted input:** uploaded APKs are fed to `jadx`/`apktool`. Run each scan
-  in a sandbox/container with no outbound network beyond the Anthropic/Voyage
-  APIs, and clean up per-scan workspaces (the server already deletes them).
-- **State:** in-memory jobs don't survive a restart and don't scale past one
-  process — move to a real queue + store (Redis/DB) for anything beyond a demo.
-- **Uploads:** capped at 200 MB (`MAX_APK_BYTES` in `server.py`); tune as needed.
+This is a local, single-user tool — no auth, rate-limiting, or queue, and job
+state is in memory (it doesn't survive a restart). A few input guards stay on
+so a malicious APK can't wreck the machine: path-safety in the agent tools, a
+decompression cap, a 200 MB upload cap (`MAX_APK_BYTES`), a decompiled-size cap
+(`APK_ANALYST_MAX_WORKSPACE_MB`), and per-scan workspace cleanup. Exposing it to
+the public internet would need real hardening (sandboxing untrusted uploads,
+auth, rate limits, a persistent queue/store) — out of scope here.
