@@ -23,6 +23,7 @@ Design notes
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import threading
 import time
@@ -188,16 +189,17 @@ def _grounding_warning(voyage_key: Optional[str] = None) -> Optional[str]:
         has_index = KnowledgeBase.exists()
     except Exception:
         has_index = False
-    has_voyage = bool(voyage_key)   # BYOK only — no server-key fallback
+    # A Voyage key from the form OR the .env both work for grounding.
+    has_voyage = bool(voyage_key) or bool(os.getenv("VOYAGE_API_KEY"))
     if not has_index:
         return ("No knowledge-base index found, so findings won't be grounded in "
                 "OWASP MASVS / methodology (build it once with `--build-kb`).")
     if not has_voyage:
-        return ("No Voyage API key provided, so the scan runs but the knowledge "
-                "base isn't consulted — findings won't be grounded in OWASP MASVS "
-                "/ methodology and carry no citations. See the \"Scan modes\" "
-                "section in the docs (/docs#modes) for how a scan runs without a "
-                "Voyage key.")
+        return ("No Voyage API key found (neither in the form nor in .env), so the "
+                "scan runs but the knowledge base isn't consulted — findings won't "
+                "be grounded in OWASP MASVS / methodology and carry no citations. "
+                "See the \"Scan modes\" section in the docs (/docs#modes) for how a "
+                "scan runs without a Voyage key.")
     return None
 
 
@@ -207,13 +209,17 @@ async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
                verbose: str = Form(""), ack: str = Form("")) -> JSONResponse:
     if mode not in ("agent", "ai"):
         raise HTTPException(400, "mode must be 'agent' or 'ai'")
-    if not api_key.strip():
-        raise HTTPException(400, "an Anthropic API key is required")
     name = (apk.filename or "").strip()
     if not name.lower().endswith(".apk"):
         raise HTTPException(400, "please upload a .apk file")
 
+    key = api_key.strip() or None
     voyage = voyage_key.strip() or None
+
+    # The Anthropic key may come from the form or from .env; require it somewhere.
+    if not key and not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(400, "No Anthropic API key found — paste one above or "
+                                 "set ANTHROPIC_API_KEY in the .env file.")
 
     # Pre-charge grounding check: warn (once) before any paid model call so the
     # caller can decide to continue ungrounded or fix the KB first.
@@ -242,7 +248,6 @@ async def scan(apk: UploadFile = File(...), mode: str = Form("agent"),
     job = Job(id=job_id, mode=mode, verbose=verbose.lower() in ("1", "true", "on", "yes"))
     with _LOCK:
         _JOBS[job_id] = job
-    key = api_key.strip() or None
     # Run the scan in its own background thread; the UI polls /api/status.
     threading.Thread(target=_run_scan, args=(job, dest, key, voyage),
                      name=f"scan-{job_id}", daemon=True).start()

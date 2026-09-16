@@ -124,8 +124,8 @@
       thoroughly it stops, and a final structured pass emits the report against a strict schema —
       <span class="muted">severity · OWASP Mobile category · CWE · location · evidence · exploit path ·
       fix · cited standards</span>.</p>
-    <p>All analysis runs on the server; the browser only uploads the APK, shows live progress, and renders
-      the finished report.</p>
+    <p>All analysis runs in the local process; the browser only uploads the APK, shows live progress, and
+      renders the finished report.</p>
   </section>
 
   <!-- 3 -->
@@ -167,7 +167,7 @@
 
     <h3>Anthropic API key <span class="tag req">required</span></h3>
     <p>This powers the <strong>analysis itself</strong>: the reasoning, the tool-use loop, and the final
-      structured report are all Claude calls. No Anthropic key (in the form or on the server) means no scan.
+      structured report are all Claude calls. No Anthropic key (in the form or in <code>.env</code>) means no scan.
       <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get an Anthropic key ↗</a></p>
 
     <h3>Voyage API key <span class="tag opt">optional · agentic only</span></h3>
@@ -216,39 +216,35 @@
   <!-- 6 -->
   <section class="card" id="handling">
     <h2>6. How your keys are handled</h2>
-    <p>We want to be precise here rather than reassuring, because your API key is a sensitive secret.</p>
-    <h3>Where a key you paste goes</h3>
+    <p>You run APKAnalyst yourself, so "the server" here is your own local process — not a remote service.</p>
+    <h3>Where a key goes</h3>
     <ul>
-      <li>It is sent with your scan request to the server over HTTPS.</li>
-      <li>On the server it is used <strong>only</strong> to build that one scan's API client, held in
-        memory (RAM) for the duration of the scan.</li>
+      <li>A key you paste in the browser is sent to the local process running on your machine.</li>
+      <li>It is used <strong>only</strong> to build that one scan's API client, held in memory (RAM) for the
+        duration of the scan.</li>
       <li>It is <strong>never written to disk, never logged, and never stored in the job record</strong>
         the status/report endpoints expose.</li>
       <li>When the scan finishes (or is cancelled) the request ends and the key is discarded.</li>
+      <li>The only place your key leaves your machine is the calls to Anthropic (and, for grounding, Voyage)
+        that actually run the analysis.</li>
     </ul>
-    <div class="warn">
-      <strong>Be clear-eyed: this is not "client-side only."</strong> Because the scan runs on the server,
-      your key <em>does</em> travel to and briefly live in the server's memory — it has to, to make the API
-      calls. Any hosted tool that runs the work for you is ultimately "trust the operator." Treat the
-      key-handling promises above as exactly that: a promise about how this server behaves, not a guarantee
-      the code can prove to you from the browser. The safest posture is in <a href="#protect">§7</a>.
-    </div>
-    <h3>Bring-your-own-key (required)</h3>
-    <p>This service runs on <strong>your</strong> keys: an Anthropic key is <strong>required</strong> for
-      every scan, and a Voyage key is optional (it enables grounded citations). There is no shared server
-      key — if you don't supply an Anthropic key, the scan won't start.</p>
+    <h3>Where the keys come from</h3>
+    <p>For each key APKAnalyst uses the value you type in the form, or — if you leave the field blank — the
+      one in your <code>.env</code> file. An Anthropic key must be available from <em>one</em> of those two
+      places for a scan to start; a Voyage key is optional (it enables grounded citations). Nothing is
+      shared between users because there are no other users — it's your machine.</p>
     <div class="note">
-      <strong>Self-hosting note.</strong> Keys are read from <code>.env</code> once at startup. After adding
-      or changing a key there, restart the server (<span class="kbd">Ctrl+C</span> and relaunch) — a running
-      process won't pick up the change.
+      <strong>Note.</strong> Keys in <code>.env</code> are read once at startup. After adding or changing a
+      key there, restart the process (<span class="kbd">Ctrl+C</span> and relaunch) — a running process
+      won't pick up the change. A key typed in the browser takes effect immediately.
     </div>
   </section>
 
   <!-- 7 -->
   <section class="card" id="protect">
     <h2>7. Protecting yourself (recommended)</h2>
-    <p>Whenever you hand an API key to any hosted tool — this one included — reduce what a leak could cost
-      you:</p>
+    <p>Good habits for any API key you use with a tool like this — they limit what a mistake or a leak could
+      cost you:</p>
     <div class="good">
       <ul style="margin:0">
         <li><strong>Create a dedicated key just for this</strong>, separate from any production key.</li>
@@ -268,8 +264,8 @@
     <h2>8. Your APK &amp; your data</h2>
     <ul>
       <li>Uploads are capped (200&nbsp;MB by default) and must be <code>.apk</code> files.</li>
-      <li>Each scan gets its own temporary workspace on the server for the decompiled output; the server
-        deletes it after the scan.</li>
+      <li>Each scan gets its own temporary workspace for the decompiled output; it's deleted after the
+        scan.</li>
       <li>Job state (progress + the finished report) is kept <strong>in memory only</strong> — it isn't
         written to a database and doesn't survive a server restart.</li>
       <li>The live console shows only static stage text, the uploaded file's name, and the target app's own
@@ -301,7 +297,7 @@
   <section class="card" id="selfhost">
     <h2>10. Running it yourself</h2>
     <p>APKAnalyst is open to run locally. It needs <code>jadx</code>, <code>apktool</code>, and
-      <code>strings</code> on the server's PATH, plus Python dependencies.</p>
+      <code>strings</code> on your PATH, plus Python dependencies.</p>
 <pre><code>pip install -r requirements.txt
 cp .env.example .env          # add ANTHROPIC_API_KEY (and VOYAGE_API_KEY for grounding)
 python3 run.py --build-kb     # build the RAG index once
@@ -322,22 +318,23 @@ python3 -m uvicorn webapp.server:app --port 8077</code></pre>
         or miss real issues, and are for informational purposes only — not a certification, audit, or
         professional security assessment. Verify anything important independently.</li>
       <li><strong>No warranty; no liability.</strong> This tool is provided "as is", without warranty of
-        any kind. The operator is not liable for any loss or damage arising from its use.</li>
+        any kind. The authors are not liable for any loss or damage arising from its use.</li>
       <li><strong>Third-party processing.</strong> Running a scan sends the app's extracted data to
         Anthropic (and, for grounding, query text to Voyage). Their terms and privacy policies apply.</li>
-      <li><strong>API costs are yours.</strong> If you supply your own key, all usage is billed to that
-        account.</li>
+      <li><strong>API costs are yours.</strong> All usage is billed to the account whose key runs the
+        scan.</li>
     </ul>
     <p class="muted">The project's source code is released under the
       <a href="https://polyformproject.org/licenses/noncommercial/1.0.0/" target="_blank" rel="noopener">PolyForm
-      Noncommercial License 1.0.0</a> — that governs reuse of the <em>code</em>; use of this hosted service
-      is governed by the terms on this page.</p>
+      Noncommercial License 1.0.0</a>, which governs reuse of the code.</p>
   </section>
 
   <!-- 12 -->
   <section class="card" id="privacy">
     <h2>12. Privacy &amp; data</h2>
     <ul>
+      <li><strong>Everything runs on your machine.</strong> APKAnalyst has no backend service collecting
+        your data — the process runs locally and keeps nothing beyond what's noted below.</li>
       <li><strong>Your APK is processed transiently.</strong> It's unpacked into a per-scan working
         directory that is <strong>deleted right after the scan</strong>. The app isn't archived or stored
         long-term.</li>
@@ -347,15 +344,11 @@ python3 -m uvicorn webapp.server:app --port 8077</code></pre>
         privacy policies. Anthropic does not train its models on data submitted through its API by default.</li>
       <li><strong>API keys.</strong> A key you paste is used only for that scan and never stored, logged,
         or written to disk (see <a href="#handling">§6</a>).</li>
-      <li><strong>Reports.</strong> A finished report is held in server memory only and is not written to a
-        database; it does not survive a server restart.</li>
-      <li><strong>Operational logs.</strong> Basic request/usage counts may be kept to run and protect the
-        service; these are not sold or shared, and are not used to identify you.</li>
-      <li><strong>Don't upload sensitive or unauthorized apps.</strong> Only submit apps you're allowed to
-        analyze and that you're comfortable sending to the third-party providers above.</li>
+      <li><strong>Reports.</strong> A finished report is held in memory only and is not written to a
+        database; it does not survive a restart.</li>
+      <li><strong>Don't scan sensitive or unauthorized apps.</strong> Only analyze apps you're allowed to
+        and that you're comfortable sending to the third-party providers above.</li>
     </ul>
-    <p class="muted">Questions or a removal request can be directed to the site operator at
-      <a href="mailto:contact@example.com">contact@example.com</a>.</p>
   </section>
 
   <div class="foot">
