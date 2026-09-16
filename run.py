@@ -6,6 +6,15 @@
 from __future__ import annotations
 
 import argparse
+import sys
+
+# Reports and progress lines can contain non-ASCII (em dashes, model text). Force
+# UTF-8 output so a non-UTF-8 locale can't crash a run with UnicodeEncodeError.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 from apk_analyst.pipeline import analyze
 

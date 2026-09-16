@@ -25,9 +25,19 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 import threading
 import time
 import uuid
+
+# Progress/diagnostic lines can contain non-ASCII (em dashes, finding titles from
+# the model). If the process was launched under a non-UTF-8 locale, a bare print()
+# would raise UnicodeEncodeError and kill the scan thread — so force UTF-8 output.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
