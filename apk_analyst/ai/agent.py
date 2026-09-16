@@ -48,11 +48,12 @@ Investigate like a real analyst:
 - Confirm findings with evidence you actually retrieved. Don't stop at the
   surface — pull the native library apart with strings before concluding.
 - GROUND your findings: for each real issue, call search_knowledge with a short
-  description of it to retrieve the matching OWASP MASVS control and course
-  notes, then record their citation labels in the finding's `standards`. Prefer
-  the most specific label retrieved — a control id like MASVS-CRYPTO-2 over the
-  bare category MASVS-CRYPTO. Only cite standards you actually retrieved — never
-  invent a control id (post-processing drops any citation not in the knowledge base).
+  description of it to retrieve the matching OWASP guidance — a MASVS control, a
+  MASWE weakness, and/or a MASTG test — then record their citation labels in the
+  finding's `standards`. Prefer the most specific label retrieved — a control id
+  like MASVS-CRYPTO-2 (or a weakness like MASWE-0007) over the bare category
+  MASVS-CRYPTO. Only cite standards you actually retrieved — never invent an id
+  (post-processing drops any citation not in the knowledge base).
 - Be efficient: don't re-run the same tool with trivially different arguments.
   A couple of targeted strings_in_lib calls per library is enough — if the .so is
   stripped/obfuscated, record that and move on rather than repeating the search.

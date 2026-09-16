@@ -103,9 +103,10 @@ Findings are grounded in a local vector knowledge base with two roles:
 
 - **Rulebook — OWASP MASVS.** The Mobile App Security Verification Standard
   controls, so a finding cites *what standard* it violates.
-- **Playbook — analyst methodology.** A curated static-analysis methodology
-  base (static analysis, malware analysis, OWASP Mobile Top 10, tooling) that
-  guides *how to find and confirm* an issue.
+- **Playbook — OWASP MASWE + MASTG.** The Mobile Application Security Weakness
+  Enumeration (the catalog of concrete weaknesses) and the MASTG Android test
+  procedures (the "Static Analysis" steps), which guide *how to find and confirm*
+  an issue. Optionally supplemented by your own local notes (see below).
 
 Sources are embedded once with [Voyage AI](https://voyageai.com) and stored in a
 small local numpy vector store; at analysis time the agent calls
@@ -179,20 +180,30 @@ python3 run.py --build-kb
 ```
 
 **About the knowledge base.** The built index and fetched standards are
-git-ignored, so a fresh clone rebuilds them locally with the command above. The
-two halves rebuild differently:
+git-ignored, so a fresh clone rebuilds them locally with the command above.
+Everything is fetched from public OWASP repos at build time:
 
-- **Rulebook (OWASP MASVS)** — fetched automatically from OWASP's public repo.
-  Every clone gets this in full.
-- **Playbook (methodology notes)** — *your* static-analysis notes. The notes the
-  project was built with are personal/copyrighted and **not distributed**, so the
-  repo ships an empty [`playbook/`](playbook/) folder. Drop your own `.md` notes
-  there (any structure) and `--build-kb` embeds them, or point
-  `APK_ANALYST_PLAYBOOK_DIR` at a notes folder elsewhere. See
-  [`playbook/README.md`](playbook/README.md).
+- **Rulebook (OWASP MASVS)** — the controls to cite, fetched from OWASP's public
+  repo. Every clone gets this in full.
+- **Playbook (OWASP MASWE + MASTG)** — the weakness catalog (MASWE) and the
+  Android test procedures (MASTG V2, `tests-beta/android`), also fetched from
+  OWASP. This is what grounds *how to find/confirm* an issue — no personal or
+  copyrighted material.
+- **Bring your own sources (optional)** — both halves accept your own `.md`
+  files, so you can supplement (or replace) the OWASP material with anything you
+  like:
+  - *Playbook* — drop notes in the empty [`playbook/`](playbook/) folder (or set
+    `APK_ANALYST_PLAYBOOK_DIR`); each file is cited by its path. See
+    [`playbook/README.md`](playbook/README.md).
+  - *Rulebook* — drop standards in the empty [`rulebook/`](rulebook/) folder (or
+    set `APK_ANALYST_RULEBOOK_DIR`); each file is cited by its filename (name it
+    after your control id, e.g. `ACME-CRYPTO-1.md` → `ACME-CRYPTO-1`). See
+    [`rulebook/README.md`](rulebook/README.md).
 
-With no playbook notes, `--build-kb` still succeeds and builds a **MASVS-only**
-index; the agent runs normally, findings just cite MASVS but no playbook. Two
+  Rebuild with `python3 run.py --build-kb` after adding files.
+
+`--build-kb` needs network access to reach OWASP's repos; the resulting index
+grounds every finding in MASVS/MASWE/MASTG. Two
 optional env vars (both with repo-local defaults) control the directories:
 `APK_ANALYST_PLAYBOOK_DIR` (where your notes live) and `APK_ANALYST_DATA_DIR`
 (where the index is stored) — see `.env.example`.
@@ -225,7 +236,7 @@ Reports are written to `workspace/<AppName>/`.
           provides zero confidentiality against an attacker who holds the app.
   fix   : Remove key material from the APK; use the Android Keystore or a
           server-negotiated session key.
-  cites : MASVS-CRYPTO · Course:Static — Exploiting Bad Cryptography
+  cites : MASVS-CRYPTO-1 · MASWE-0013 (hardcoded cryptographic key)
 ```
 
 ---

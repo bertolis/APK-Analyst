@@ -1,8 +1,9 @@
 """The Step 2 Claude call: extracted facts -> structured AnalysisReport.
 
 One request, structured output (Pydantic via messages.parse). No agentic loop
-yet — that's Step 3. The system prompt encodes the course playbook so findings
-follow *this* methodology, not generic OWASP boilerplate.
+yet — that's Step 3. The system prompt encodes a disciplined static-analysis
+playbook so findings follow a consistent methodology, grounded (in agentic mode)
+by the OWASP MASVS/MASWE/MASTG knowledge base.
 """
 from __future__ import annotations
 

@@ -13,10 +13,12 @@ APKs/
 # generated RAG index + fetched MASVS cache (rebuild with --build-kb)
 apk_analyst/data/
 
-# playbook notes are personal/copyrighted — ship only the folder + its README,
-# never a user's own methodology notes (keep this in sync with the README there)
+# optional local knowledge — ship only each folder + its README, never a user's
+# own notes/standards (the OWASP sources are fetched at build time, not stored here)
 playbook/*
 !playbook/README.md
+rulebook/*
+!rulebook/README.md
 
 # eval run outputs (agent reports/scorecards derived from copyrighted challenge apps)
 eval/results/

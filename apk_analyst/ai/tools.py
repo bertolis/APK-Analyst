@@ -75,20 +75,22 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "search_knowledge",
-        "description": "Search the security knowledge base (OWASP MASVS controls + the "
-                       "analyst's OWASP Mobile Top 10 course notes) by meaning. Use it to ground "
+        "description": "Search the security knowledge base (OWASP MASVS controls + MASWE "
+                       "weaknesses + MASTG Android test procedures) by meaning. Use it to ground "
                        "a finding in a real standard: pass a natural-language description of the "
                        "issue (e.g. 'hardcoded AES key in native library', 'cleartext HTTP "
-                       "traffic allowed') and get back the most relevant control/notes with their "
-                       "citation labels. Cite what you retrieve in the finding's `standards`.",
+                       "traffic allowed') and get back the most relevant control/weakness/test with "
+                       "their citation labels. Cite what you retrieve in the finding's `standards`.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Description of the security issue to look up."},
                 "source": {
                     "type": "string",
-                    "enum": ["masvs", "course"],
-                    "description": "Optional: restrict to MASVS controls or course notes only.",
+                    "enum": ["masvs", "maswe", "mastg", "course", "rulebook"],
+                    "description": "Optional: restrict to one source — masvs (controls to cite), "
+                                   "maswe (weaknesses), mastg (test procedures), course (local notes), "
+                                   "or rulebook (local custom standards).",
                 },
             },
             "required": ["query"],

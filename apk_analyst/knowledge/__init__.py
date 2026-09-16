@@ -1,7 +1,8 @@
 """Step 4 — RAG grounding.
 
-A small local knowledge base of real mobile-security standards (OWASP MASVS
-controls) plus the author's own course notes (OWASP Mobile Top 10, M1-M10). The
+A small local knowledge base of real mobile-security standards: OWASP MASVS
+controls (the rulebook to cite) plus OWASP MASWE weaknesses and MASTG Android
+test procedures (the playbook for how to find/confirm an issue). The
 agent can search it during an investigation and cite the exact standard/control
 a finding maps to, instead of relying on the model's memory.
 

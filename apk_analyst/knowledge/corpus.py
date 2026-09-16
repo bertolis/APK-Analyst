@@ -1,17 +1,27 @@
 """Gather and chunk the knowledge sources into embeddable pieces.
 
-Two sources, both authoritative for *this* tool's methodology:
-  1. Playbook notes — your own static-analysis methodology write-ups, read from a
-     user-configurable folder (see playbook_dir()); tagged source="course".
-  2. OWASP MASVS  — the official Mobile App Security Verification Standard
-     controls (STORAGE/CRYPTO/AUTH/NETWORK/PLATFORM/CODE/RESILIENCE/PRIVACY),
-     fetched from GitHub once and cached locally; tagged source="masvs".
+The knowledge base has two halves, all sourced from public OWASP standards:
+
+  RULEBOOK — what to cite:
+    * OWASP MASVS — the Mobile App Security Verification Standard controls
+      (STORAGE/CRYPTO/AUTH/NETWORK/PLATFORM/CODE/RESILIENCE/PRIVACY), fetched
+      from GitHub once and cached; tagged source="masvs".
+
+  PLAYBOOK — how to find/confirm an issue:
+    * OWASP MASWE — the Mobile Application Security Weakness Enumeration
+      (the catalog of concrete weaknesses); tagged source="maswe".
+    * OWASP MASTG (V2) — the Android testing guide's test procedures
+      (the "Static Analysis" steps per control); tagged source="mastg".
+    * Optional local notes — any Markdown you drop in the playbook/ folder (or
+      point APK_ANALYST_PLAYBOOK_DIR at); tagged source="course". Empty by
+      default, so a clean clone builds a fully OWASP-sourced base.
 
 Each source is split on Markdown headings into ~paragraph-sized chunks so a
 query retrieves a focused control/subtopic rather than a whole document.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import urllib.request
@@ -33,11 +43,22 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 # If the folder is absent the build simply proceeds MASVS-only (see _course_chunks).
 _DEFAULT_PLAYBOOK = Path(__file__).resolve().parents[2] / "playbook"
 
+# The RULEBOOK also accepts your own local sources (in addition to OWASP MASVS):
+# any `.md` under this folder is embedded as a rulebook entry and cited by its
+# id/filename. Ships empty; configurable like the playbook.
+_DEFAULT_RULEBOOK = Path(__file__).resolve().parents[2] / "rulebook"
+
 
 def playbook_dir() -> Path:
     """Resolve the playbook directory from the env var, else the repo default."""
     raw = os.getenv("APK_ANALYST_PLAYBOOK_DIR")
     return Path(raw).expanduser() if raw else _DEFAULT_PLAYBOOK
+
+
+def rulebook_dir() -> Path:
+    """Resolve the local rulebook directory from the env var, else repo default."""
+    raw = os.getenv("APK_ANALYST_RULEBOOK_DIR")
+    return Path(raw).expanduser() if raw else _DEFAULT_RULEBOOK
 
 
 # OWASP MASVS category intros (raw GitHub). Fetched once, then cached in data/.
@@ -66,6 +87,20 @@ MASVS_CONTROL_FILES = [
     "MASVS-PRIVACY-1.md", "MASVS-PRIVACY-2.md", "MASVS-PRIVACY-3.md", "MASVS-PRIVACY-4.md",
 ]
 
+# OWASP MASWE — Mobile Application Security Weakness Enumeration (the PLAYBOOK's
+# "what can go wrong" catalog). Files live under weaknesses/MASVS-<CAT>/MASWE-*.md.
+MASWE_REPO = "OWASP/maswe"
+MASWE_BRANCH = "main"
+MASWE_RAW = f"https://raw.githubusercontent.com/{MASWE_REPO}/{MASWE_BRANCH}/"
+
+# OWASP MASTG V2 — the Android test procedures (the PLAYBOOK's "how to confirm"
+# steps). V2 tests live under tests-beta/android/MASVS-<CAT>/MASTG-TEST-*.md;
+# the older tests/ tree is mostly deprecated, so we use tests-beta.
+MASTG_REPO = "OWASP/mastg"
+MASTG_BRANCH = "master"
+MASTG_RAW = f"https://raw.githubusercontent.com/{MASTG_REPO}/{MASTG_BRANCH}/"
+MASTG_TESTS_PREFIX = "tests-beta/android/"
+
 _MAX_WORDS = 320    # split chunks larger than this along paragraph boundaries
 _MIN_WORDS = 12     # drop trivially short fragments (stray headings, etc.)
 
@@ -73,7 +108,7 @@ _MIN_WORDS = 12     # drop trivially short fragments (stray headings, etc.)
 @dataclass
 class Chunk:
     text: str
-    source: str            # "course" | "masvs"
+    source: str            # "masvs" | "maswe" | "mastg" | "course" | "rulebook"
     category: str          # e.g. "M10 Insufficient Cryptography" | "MASVS-CRYPTO"
     title: str             # heading of this chunk
     ref: str = field(default="")  # short citation label, e.g. "Course:M10" / "MASVS-CRYPTO"
@@ -140,8 +175,8 @@ def _course_chunks() -> list[Chunk]:
     """
     base = playbook_dir()
     if not base.is_dir():
-        print(f"  i no playbook dir at {base} - building MASVS-only. "
-              f"Point APK_ANALYST_PLAYBOOK_DIR at your notes, or add .md files there.")
+        print(f"  i no local playbook dir at {base} - using OWASP MASWE+MASTG only. "
+              f"Optional: add .md notes there, or point APK_ANALYST_PLAYBOOK_DIR at a folder.")
         return []
 
     files = [f for f in sorted(base.rglob("*.md")) if f.name.lower() != "readme.md"]
@@ -150,10 +185,10 @@ def _course_chunks() -> list[Chunk]:
         ref, cat = _cite_for(f, base)
         chunks += _split_markdown(f.read_text(errors="replace"), "course", cat, ref=ref)
     if files:
-        print(f"  playbook: {len(files)} .md file(s) at {base}")
+        print(f"  local notes: {len(files)} .md file(s) at {base}")
     else:
-        print(f"  i no .md notes in {base} - building MASVS-only. "
-              f"Add notes there, or point APK_ANALYST_PLAYBOOK_DIR at your notes.")
+        print(f"  i no local .md notes in {base} - using OWASP MASWE+MASTG only "
+              f"(add notes there to supplement the playbook).")
     return chunks
 
 
@@ -168,6 +203,25 @@ def _cite_for(f: Path, base: Path) -> tuple[str, str]:
         return f"Course:{m.group(1)}", f"{m.group(1)} {m.group(2).replace('_', ' ')}"
     rel = "/".join(f.relative_to(base).with_suffix("").parts)   # e.g. "crypto/aes-misuse"
     return f"Course:{rel}", rel.replace("_", " ")
+
+
+def _local_rulebook_chunks() -> list[Chunk]:
+    """Chunk every `.md` under the local rulebook dir (optional, empty by default).
+
+    Lets a user add their *own* standard/controls to cite, alongside OWASP MASVS.
+    Each file is cited by its filename stem (name your files after your control
+    ids, e.g. `ACME-CRYPTO-1.md` -> cited `ACME-CRYPTO-1`). Absent dir -> []."""
+    base = rulebook_dir()
+    if not base.is_dir():
+        return []
+    files = [f for f in sorted(base.rglob("*.md")) if f.name.lower() != "readme.md"]
+    chunks: list[Chunk] = []
+    for f in files:
+        ref = f.stem                                     # e.g. "ACME-CRYPTO-1"
+        chunks += _split_markdown(f.read_text(errors="replace"), "rulebook", ref, ref=ref)
+    if files:
+        print(f"  local rulebook: {len(files)} .md file(s) at {base}")
+    return chunks
 
 
 def _fetch_cached(url: str, cache: Path) -> str | None:
@@ -227,11 +281,100 @@ def _control_chunk(md: str, control_id: str, category: str) -> Chunk:
     )
 
 
+def _github_tree(repo: str, branch: str) -> list[str]:
+    """Return every file path in a GitHub repo/branch (one API call, recursive).
+
+    Used to enumerate the MASWE/MASTG markdown files without hardcoding hundreds
+    of names. Network failure -> [] (caller then contributes nothing)."""
+    url = f"https://api.github.com/repos/{repo}/git/trees/{branch}?recursive=1"
+    try:
+        req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
+                                                   "User-Agent": "apkanalyst-kb-build"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            data = json.loads(r.read().decode("utf-8", "replace"))
+        return [e["path"] for e in data.get("tree", []) if e.get("type") == "blob"]
+    except Exception as e:
+        print(f"  ! could not list {repo}@{branch}: {e}")
+        return []
+
+
+def _split_frontmatter(md: str) -> tuple[dict, str]:
+    """Split a `--- ... ---` YAML front-matter header from the markdown body."""
+    m = re.match(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", md, re.S)
+    if not m:
+        return {}, md
+    try:
+        import yaml
+        meta = yaml.safe_load(m.group(1)) or {}
+        if not isinstance(meta, dict):
+            meta = {}
+    except Exception:
+        meta = {}
+    return meta, m.group(2)
+
+
+def _category_from_path(path: str) -> str:
+    """Pull the MASVS-<CAT> segment out of a MASWE/MASTG file path (else '')."""
+    m = re.search(r"(MASVS-[A-Z]+)", path)
+    return m.group(1) if m else ""
+
+
+def _owasp_note_chunks(paths: list[str], raw_base: str, cache_dir: Path,
+                       source: str, id_regex: str) -> list[Chunk]:
+    """Fetch + chunk a set of OWASP playbook files (MASWE or MASTG).
+
+    Each file: strip YAML front-matter, skip anything marked deprecated, cite by
+    its id (e.g. MASWE-0007 / MASTG-TEST-0327) taken from the frontmatter title
+    or the filename, and categorize by the MASVS-<CAT> in its path."""
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    chunks: list[Chunk] = []
+    kept = 0
+    for path in paths:
+        cache = cache_dir / Path(path).name
+        md = _fetch_cached(raw_base + path, cache)
+        if md is None:
+            continue
+        meta, body = _split_frontmatter(md)
+        if str(meta.get("status", "")).lower() == "deprecated":
+            continue
+        stem = Path(path).name[:-3]                      # filename without .md
+        m = re.search(id_regex, path)
+        ref = m.group(0) if m else stem
+        category = _category_from_path(path) or meta.get("title", ref)
+        title = str(meta.get("title") or ref)
+        # Prepend the human title so the vector carries the weakness/test name.
+        body = f"# {title}\n{body.strip()}"
+        chunks += _split_markdown(body, source, category, ref=ref)
+        kept += 1
+    print(f"  {source}: {kept} file(s) chunked from {raw_base.split('/')[3]}")
+    return chunks
+
+
+def _maswe_chunks(cache_dir: Path) -> list[Chunk]:
+    """OWASP MASWE weaknesses (the playbook's 'what can go wrong')."""
+    paths = [p for p in _github_tree(MASWE_REPO, MASWE_BRANCH)
+             if p.startswith("weaknesses/") and re.search(r"MASWE-\d+\.md$", p)]
+    return _owasp_note_chunks(paths, MASWE_RAW, cache_dir / "maswe",
+                              "maswe", r"MASWE-\d+")
+
+
+def _mastg_chunks(cache_dir: Path) -> list[Chunk]:
+    """OWASP MASTG V2 Android test procedures (the playbook's 'how to confirm')."""
+    paths = [p for p in _github_tree(MASTG_REPO, MASTG_BRANCH)
+             if p.startswith(MASTG_TESTS_PREFIX) and re.search(r"MASTG-TEST-\d+\.md$", p)]
+    return _owasp_note_chunks(paths, MASTG_RAW, cache_dir / "mastg",
+                              "mastg", r"MASTG-TEST-\d+")
+
+
 def gather_chunks(cache_dir: Path) -> list[Chunk]:
     """Collect all knowledge chunks from every source."""
-    course = _course_chunks()
+    course = _course_chunks()             # optional local playbook notes (empty by default)
+    local_rules = _local_rulebook_chunks()  # optional local rulebook (empty by default)
+    maswe = _maswe_chunks(cache_dir)
+    mastg = _mastg_chunks(cache_dir)
     masvs = _masvs_chunks(cache_dir)
-    n_controls = sum(1 for c in masvs if c.ref[-2:-1] == "-" or c.ref.rsplit("-", 1)[-1].isdigit())
-    print(f"  gathered {len(course)} course chunk(s), {len(masvs)} MASVS chunk(s) "
-          f"({n_controls} control-level)")
-    return course + masvs
+    n_controls = sum(1 for c in masvs if c.ref.rsplit("-", 1)[-1].isdigit())
+    extra = f", {len(local_rules)} local-rulebook" if local_rules else ""
+    print(f"  gathered {len(course)} local + {len(maswe)} MASWE + {len(mastg)} MASTG "
+          f"+ {len(masvs)} MASVS chunk(s){extra} ({n_controls} MASVS control-level)")
+    return course + local_rules + maswe + mastg + masvs

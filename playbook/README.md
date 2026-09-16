@@ -1,14 +1,15 @@
-# Playbook — your analyst methodology notes
+# Playbook — optional local methodology notes
 
-This folder is where the **playbook** half of the RAG knowledge base comes from:
-your own static-analysis methodology notes describing *how to find and confirm*
-mobile security issues. (The other half — the **rulebook**, OWASP MASVS, *what to
-cite* — is fetched automatically from OWASP's public repo at build time.)
+The RAG knowledge base is built entirely from **public OWASP standards**, fetched
+at build time:
 
-**This folder ships empty on purpose.** The methodology notes the project was
-originally built with are personal, copyrighted course material and are not
-redistributed. Drop your own notes here to ground the agent in *your*
-methodology.
+- **Rulebook — OWASP MASVS** (the controls to *cite*).
+- **Playbook — OWASP MASWE + MASTG** (weaknesses + Android test procedures: *how
+  to find and confirm* an issue).
+
+**This folder is optional.** It ships empty; anything you drop here is embedded
+*in addition to* the OWASP playbook, so you can ground the agent in your own
+static-analysis notes too. Leave it empty and the base is 100% OWASP-sourced.
 
 ## How to add notes
 

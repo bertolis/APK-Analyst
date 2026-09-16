@@ -173,8 +173,8 @@
     <h3>Voyage API key <span class="tag opt">optional · agentic only</span></h3>
     <p>This powers <strong>RAG grounding</strong>. In agentic mode the agent's <code>search_knowledge</code>
       tool turns its query into an embedding (a numeric vector) using Voyage AI, then finds the most relevant
-      OWASP MASVS controls and methodology notes by meaning. Those become the citations attached to each
-      finding.</p>
+      OWASP MASVS controls, MASWE weaknesses, and MASTG tests by meaning. Those become the citations
+      attached to each finding.</p>
     <ul>
       <li>Single-call mode never uses Voyage.</li>
       <li>Agentic mode still runs <em>without</em> a Voyage key, but <strong>ungrounded</strong> — the
@@ -283,8 +283,10 @@
     <ul>
       <li><strong>Rulebook — OWASP MASVS.</strong> The Mobile App Security Verification Standard controls,
         so a finding cites <em>which standard</em> it violates.</li>
-      <li><strong>Playbook — analyst methodology.</strong> A curated static-analysis methodology base that
-        guides <em>how to find and confirm</em> an issue.</li>
+      <li><strong>Playbook — OWASP MASWE + MASTG.</strong> The Mobile Application Security Weakness
+        Enumeration (concrete weaknesses) and the MASTG Android test procedures, which guide
+        <em>how to find and confirm</em> an issue. All fetched from public OWASP repos; you can
+        optionally add your own local notes to supplement it.</li>
     </ul>
     <p>The corpus is embedded once with Voyage AI into a small local vector store; at analysis time the
       agent retrieves the most relevant controls/notes by meaning and records them on each finding. As a
@@ -302,10 +304,10 @@
 cp .env.example .env          # add ANTHROPIC_API_KEY (and VOYAGE_API_KEY for grounding)
 python3 run.py --build-kb     # build the RAG index once
 python3 -m uvicorn webapp.server:app --port 8077</code></pre>
-    <p>Then open <code>http://127.0.0.1:8077</code>. With no methodology notes the index builds
-      <strong>MASVS-only</strong> and the tool still works — findings just cite MASVS. Full setup details,
-      including how to add your own methodology notes, are in the project README and
-      <code>playbook/README.md</code>.</p>
+    <p>Then open <code>http://127.0.0.1:8077</code>. <code>--build-kb</code> fetches the OWASP
+      knowledge (MASVS + MASWE + MASTG) from their public repos, so grounding works out of the box.
+      You can optionally add your own local notes to supplement the playbook — see the project README
+      and <code>playbook/README.md</code>.</p>
   </section>
 
   <!-- 11 -->
