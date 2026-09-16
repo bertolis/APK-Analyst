@@ -108,6 +108,6 @@ def analyze(apk_path: str, workspace: str = "workspace",
     }
 
     out = work / "extraction.json"
-    out.write_text(json.dumps(summary, indent=2))
+    out.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     summary["summary_json"] = str(out.resolve())
     return summary

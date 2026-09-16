@@ -147,7 +147,7 @@ class Toolbox:
             return f"(access denied: {path} is a pipeline artifact)"
         if not f.is_file():
             return f"(no such file: {path})"
-        text = f.read_text(errors="replace")
+        text = f.read_text(encoding="utf-8", errors="replace")
         if len(text) > _MAX_READ:
             return text[:_MAX_READ] + f"\n\n[truncated at {_MAX_READ} chars of {len(text)}]"
         return text
@@ -160,7 +160,7 @@ class Toolbox:
             if not f.is_file() or f.suffix not in _TEXT_EXT or f.name in _SKIP_NAMES:
                 continue
             try:
-                for i, line in enumerate(f.read_text(errors="replace").splitlines(), 1):
+                for i, line in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
                     if rx.search(line):
                         rel = f.relative_to(self.root)
                         hits.append(f"{rel}:{i}: {line.strip()[:200]}")

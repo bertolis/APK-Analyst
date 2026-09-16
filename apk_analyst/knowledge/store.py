@@ -69,12 +69,12 @@ class KnowledgeBase:
     def save(self, out_dir: Path = DATA_DIR) -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
         np.save(out_dir / _EMB, self.embeddings)
-        (out_dir / _META).write_text(json.dumps(self.chunks, indent=2))
+        (out_dir / _META).write_text(json.dumps(self.chunks, indent=2), encoding="utf-8")
 
     @classmethod
     def load(cls, in_dir: Path = DATA_DIR, embedder: Embedder | None = None) -> "KnowledgeBase":
         emb = np.load(in_dir / _EMB)
-        chunks = json.loads((in_dir / _META).read_text())
+        chunks = json.loads((in_dir / _META).read_text(encoding="utf-8"))
         return cls(emb, chunks, embedder)
 
     @classmethod

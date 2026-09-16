@@ -183,7 +183,7 @@ def _course_chunks() -> list[Chunk]:
     chunks: list[Chunk] = []
     for f in files:
         ref, cat = _cite_for(f, base)
-        chunks += _split_markdown(f.read_text(errors="replace"), "course", cat, ref=ref)
+        chunks += _split_markdown(f.read_text(encoding="utf-8", errors="replace"), "course", cat, ref=ref)
     if files:
         print(f"  local notes: {len(files)} .md file(s) at {base}")
     else:
@@ -218,7 +218,7 @@ def _local_rulebook_chunks() -> list[Chunk]:
     chunks: list[Chunk] = []
     for f in files:
         ref = f.stem                                     # e.g. "ACME-CRYPTO-1"
-        chunks += _split_markdown(f.read_text(errors="replace"), "rulebook", ref, ref=ref)
+        chunks += _split_markdown(f.read_text(encoding="utf-8", errors="replace"), "rulebook", ref, ref=ref)
     if files:
         print(f"  local rulebook: {len(files)} .md file(s) at {base}")
     return chunks
@@ -227,12 +227,12 @@ def _local_rulebook_chunks() -> list[Chunk]:
 def _fetch_cached(url: str, cache: Path) -> str | None:
     """Return a file's text from local cache, else fetch it once and cache it."""
     if cache.is_file():
-        return cache.read_text(errors="replace")
+        return cache.read_text(encoding="utf-8", errors="replace")
     try:
         with urllib.request.urlopen(url, timeout=20) as r:
             md = r.read().decode("utf-8", "replace")
         cache.parent.mkdir(parents=True, exist_ok=True)
-        cache.write_text(md)
+        cache.write_text(md, encoding="utf-8")
         return md
     except Exception as e:  # offline / fetch failure: caller skips this file
         print(f"  ! could not fetch {cache.name}: {e}")

@@ -58,7 +58,7 @@ def _pack_app_source(summary: dict) -> str:
     chunks: list[str] = []
     used = 0
     for f in files:
-        text = f.read_text(errors="replace")
+        text = f.read_text(encoding="utf-8", errors="replace")
         rel = f.relative_to(jadx_dir)
         header = f"\n// ===== {rel} =====\n"
         if used + len(text) + len(header) > _SOURCE_CHAR_BUDGET:
