@@ -492,7 +492,17 @@ function renderReport(rep){
 }
 function kv(k,v,mono){ if(!v) return ""; return `<div class="kv"><div class="k">${k}</div>`+
   `<div class="v ${mono?"mono":""}">${esc(v)}</div></div>`; }
-function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// Turn literal \uXXXX escape sequences (and surrogate pairs) into real characters
+// before display — the model / jadx sometimes emit em dashes, middle dots and
+// emoji as escapes (e.g. "—", "🔒"). Only \uXXXX is touched, so
+// code evidence like "\n" or "\d" is left intact.
+function deuni(s){
+  return String(s??"")
+    .replace(/\\u(d[89ab][0-9a-f]{2})\\u(d[c-f][0-9a-f]{2})/gi,
+             (_,h,l)=>String.fromCharCode(parseInt(h,16),parseInt(l,16)))
+    .replace(/\\u([0-9a-f]{4})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));
+}
+function esc(s){ return deuni(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 </script>
 </body>
 </html>
