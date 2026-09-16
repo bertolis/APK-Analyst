@@ -17,15 +17,16 @@ Then open <http://127.0.0.1:8077>.
 - **Scan mode** — *Full agentic* (the tool-driven agent + RAG grounding, best
   findings, a few minutes) or *Single-call* (one structured pass, faster and
   cheaper, fewer findings).
-- **API key** — an Anthropic key is **required** (bring-your-own-key); there is
-  no server-key fallback. The key is used only to build that scan's client — it
-  is never stored, logged, or written to disk.
-- **Grounding key (Voyage)** — optional web field (bring-your-own); there is no
-  server-key fallback. Used by `search_knowledge` in agentic mode to embed the
-  query for RAG grounding. If no key is provided or the index isn't built, an
-  agentic scan pops a warning *before* any paid model call: continue ungrounded,
-  or cancel. Note: a card-less free Voyage account is throttled to 3 RPM / 10K
-  TPM; add a payment method to remove it.
+- **API key** — an Anthropic key is needed for every scan. Paste it in the web
+  form, or leave the field blank to use `ANTHROPIC_API_KEY` from your `.env`. The
+  key is used only to build that scan's client — it is never stored, logged, or
+  written to disk. A scan with no key in either place fails fast with a clear error.
+- **Grounding key (Voyage)** — optional. Paste it in the form or set
+  `VOYAGE_API_KEY` in `.env`. Used by `search_knowledge` in agentic mode to embed
+  the query for RAG grounding. If no key is available in either place (or the
+  index isn't built), an agentic scan pops a warning *before* any paid model call:
+  continue ungrounded, or cancel. Note: a card-less free Voyage account is
+  throttled to 3 RPM / 10K TPM; add a payment method to remove it.
 
 A user-facing documentation page is served at `/docs` (how it works, why it needs
 keys, how keys/data are handled, and the Voyage free-vs-paid throttle).
