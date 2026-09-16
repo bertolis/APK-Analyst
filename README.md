@@ -97,6 +97,16 @@ it has investigated thoroughly it stops, and a final structured-output pass emit
 the report against a strict schema (severity · OWASP Mobile category · CWE ·
 location · evidence · exploit path · fix · cited standards).
 
+### Scan modes
+
+- **Single-call** (`--ai`) — decompiles the APK, packs the extracted facts
+  (manifest, native strings, first-party code) into one prompt, and gets findings
+  back in a single Claude call. Fast and cheap, but reasons only from what's
+  packed — no exploration.
+- **Full agentic** (`--agent`) — the tool-use loop above: Claude explores the
+  decompiled app with tools and grounds findings in the RAG knowledge base. Slower
+  and pricier, but verifies from evidence and finds more.
+
 ### Grounding (RAG)
 
 Findings are grounded in a local vector knowledge base with two roles:
