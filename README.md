@@ -16,6 +16,15 @@ maps to instead of relying on the model's memory.
 
 ## Demo
 
+### ▶️ Live demo
+
+Try it now on a hosted instance: **<https://apkanalyst.com>**.
+
+Scanning is gated by an access code (to keep hosting costs and abuse in check) —
+the site and docs are fully browsable, and you can request a code at
+**access_request@apkanalyst.com**. You bring your own Anthropic (and optional
+Voyage) API key; keys are held in memory only for the scan and never stored.
+
 Drag in an APK, pick a scan mode, and read the prioritized report in the browser
 (with a one-click **Download PDF**):
 
