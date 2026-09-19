@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="APKAnalyst">
+  <rect width="64" height="64" rx="14" fill="#0f1115"/>
+  <!-- magnifying glass: analysis / scanning -->
+  <circle cx="28" cy="28" r="14" fill="none" stroke="#5b8cff" stroke-width="5"/>
+  <line x1="38" y1="38" x2="52" y2="52" stroke="#5b8cff" stroke-width="6" stroke-linecap="round"/>
+  <!-- checkmark inside the lens: verified finding -->
+  <path d="M21 28.5 l5 5 l10 -11" fill="none" stroke="#3ecf8e" stroke-width="4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
