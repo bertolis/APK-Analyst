@@ -43,8 +43,9 @@
     padding:14px 16px;overflow-x:auto;margin:12px 0}
   pre code{background:none;border:0;padding:0;font-size:12.5px;line-height:1.6;color:#e7e9ee}
   .muted{color:var(--muted)}
-  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.8px}
-  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.8px;table-layout:fixed}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top;
+    overflow-wrap:anywhere;word-break:break-word}
   th{background:var(--panel2);color:var(--fg);font-weight:600}
   td .mono{font-size:12.3px}
   .toc{columns:2;column-gap:26px;font-size:13.8px}
@@ -62,7 +63,8 @@
   .tag.req{background:var(--high)} .tag.opt{background:var(--accent)}
   .foot{margin-top:34px;color:var(--muted);font-size:12.8px;text-align:center}
   .foot a{color:var(--muted);text-decoration:underline}
-  @media (max-width:560px){ .toc{columns:1} }
+  @media (max-width:560px){ .toc{columns:1}
+    table{font-size:12.3px} th,td{padding:7px 8px} }
 </style>
 </head>
 <body>
