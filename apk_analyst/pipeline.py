@@ -89,6 +89,19 @@ def analyze(apk_path: str, workspace: str = "workspace",
     step("Unpacking smali + resources with apktool…")
     apktool = run_apktool(str(apk), str(work / "apktool"))
     _guard_workspace_size(work)
+
+    # Guard: if BOTH decompilers produced no code the analyst would only see
+    # resources and could emit a confident-but-worthless report. Fail clearly
+    # instead of scanning an empty workspace. Keyed on both being empty so a
+    # normal app never trips it. The tools' own error text is logged locally but
+    # kept out of the user-facing message.
+    if jadx.file_count == 0 and apktool.file_count == 0:
+        print(f"[decompile] jadx: {jadx.note or 'no output'} | "
+              f"apktool: {apktool.note or 'no output'}")
+        raise RuntimeError(
+            "Could not decompile this APK — no code was extracted. The file may "
+            "be corrupt, unsupported, or not a standard Android app.")
+
     step("Extraction complete — handing off to the analyst.")
 
     summary = {
