@@ -225,8 +225,14 @@ Everything is fetched from public OWASP repos at build time:
   Rebuild with `python3 run.py --build-kb` after adding files.
 
 `--build-kb` needs network access to reach OWASP's repos; the resulting index
-grounds every finding in MASVS/MASWE/MASTG. Two
-optional env vars (both with repo-local defaults) control the directories:
+grounds every finding in MASVS/MASWE/MASTG.
+
+> **Note:** `--build-kb` enumerates the OWASP files via GitHub's unauthenticated
+> API, which is rate-limited to 60 requests/hour. If you rebuild repeatedly you
+> may hit the limit and see 0 files fetched — just wait an hour and retry, or set
+> a `GITHUB_TOKEN` (a plain read-only token raises the limit to 5,000/hour).
+
+Two optional env vars (both with repo-local defaults) control the directories:
 `APK_ANALYST_PLAYBOOK_DIR` (where your notes live) and `APK_ANALYST_DATA_DIR`
 (where the index is stored) — see `.env.example`.
 

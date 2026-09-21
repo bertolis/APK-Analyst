@@ -287,9 +287,16 @@ def _github_tree(repo: str, branch: str) -> list[str]:
     Used to enumerate the MASWE/MASTG markdown files without hardcoding hundreds
     of names. Network failure -> [] (caller then contributes nothing)."""
     url = f"https://api.github.com/repos/{repo}/git/trees/{branch}?recursive=1"
+    headers = {"Accept": "application/vnd.github+json",
+               "User-Agent": "apkanalyst-kb-build"}
+    # The unauthenticated GitHub API allows only 60 requests/hour. A GITHUB_TOKEN
+    # (a plain read-only token is enough) raises that to 5,000/hour, so repeated
+    # rebuilds don't fail with 0 files fetched.
+    token = os.getenv("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     try:
-        req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
-                                                   "User-Agent": "apkanalyst-kb-build"})
+        req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=30) as r:
             data = json.loads(r.read().decode("utf-8", "replace"))
         return [e["path"] for e in data.get("tree", []) if e.get("type") == "blob"]
