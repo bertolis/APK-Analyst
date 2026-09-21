@@ -408,7 +408,7 @@ async function checkStatus(id){
       $("#stop").disabled = true;
       $("#stageText").textContent = "Scan interrupted";
       $("#progDetail").textContent = "";
-      $("#runErr").textContent = "The server restarted while this scan was running. Please start it again.";
+      $("#runErr").textContent = "This scan was interrupted and could not be resumed. Please start it again.";
       $("#go").disabled = false; return;
     }
     s = await r.json();
